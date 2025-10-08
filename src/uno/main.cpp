@@ -1,3 +1,11 @@
+/*
+Author: Caleb Gomez
+Date: 09/22/2025
+Description:
+09/22/2025
+    This program was initially designed to move the Senior Design robot fowards and backwards just to test functionality
+*/
+
 #include <Arduino.h>
 #include <functions.h>
 
@@ -23,7 +31,7 @@ void setup() {
     motorsOff();
 }
 
-//Change this to a 1 and the other to a 0 to test motors
+//Change testing to a true
 #if testing
 void loop(){
         test();

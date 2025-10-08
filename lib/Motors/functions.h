@@ -15,10 +15,10 @@
 
 //Analog Pins
 #ifdef ESP32
-  #define y_axis 32   // use GPIO32 for Y-axis
-  #define x_axis 33   // example GPIO for X-axis
+  #define y_axis 32
+  #define x_axis 33
 #else
-  #define y_axis A1   // Arduino Uno
+  #define y_axis A1
   #define x_axis A0
 #endif
 
