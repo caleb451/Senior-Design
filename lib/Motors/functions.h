@@ -14,8 +14,13 @@
 #define m4_bkwd 9
 
 //Analog Pins
-#define x_axis A0
-#define y_axis A1
+#ifdef ESP32
+  #define y_axis 32   // use GPIO32 for Y-axis
+  #define x_axis 33   // example GPIO for X-axis
+#else
+  #define y_axis A1   // Arduino Uno
+  #define x_axis A0
+#endif
 
 //Motor Groups
 extern int motors[8];

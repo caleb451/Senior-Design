@@ -1,8 +1,6 @@
 #include <Arduino.h>
 #include <functions.h>
 
-//const int testing = 1;
-
 int xvalue = 0;
 int yvalue = 0;
 char state = ' ';

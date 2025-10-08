@@ -1,0 +1,9 @@
+{
+  "name": "Motors",
+  "version": "1.0.0",
+  "author": "Caleb Gomez",
+  "license": "MIT",
+  "description": "Motor control helper functions for multiple boards.",
+  "frameworks": "arduino",
+  "platforms": ["atmelavr", "espressif32"]
+}
