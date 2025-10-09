@@ -46,7 +46,7 @@ char joystickControl(int xvalue, int yvalue){
         return '7';
     if ((xvalue >= 900) && (yvalue >= 400)) //back right
         return '8';
-    if (((yvalue >= 400) && (yvalue <= 900)) && ((xvalue >= 400) && (xvalue <= 900))) //Idle cause gorge is gay
+    if (((yvalue >= 400) && (yvalue <= 900)) && ((xvalue >= 400) && (xvalue <= 900))) //Idle
         return ' ';
 }
 
