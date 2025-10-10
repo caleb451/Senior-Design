@@ -4,7 +4,7 @@ Date: 09/22/2025
 Description:
 10/07/2025
     This program is designed to use the same functionality and base program used from the arduino uno but 
-    uses the esp32_now protocol to allow wireless communication between two esp32s.
+    uses the esp32_now protocol to recieve wireless communication between two esp32s.
 */
 
 #include <Arduino.h>
@@ -48,13 +48,6 @@ void loop(){
 void loop() {
     xvalue = analogRead(x_axis);
     yvalue = analogRead(y_axis);
-
-    //This is to print the values of the joystick to see the x and y values
-    // Serial.print("\n\nX-value: ");
-    // Serial.print(xvalue);
-    // Serial.print("\nY-value: ");
-    // Serial.print(yvalue);
-    // delay(100);
 
     state = joystickControl(xvalue, yvalue);
 

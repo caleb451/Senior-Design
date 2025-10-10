@@ -2,8 +2,12 @@
 Author: Caleb Gomez
 Date: 09/18/2025
 Description:
+09/18/2025
+	This uses an Arduino Uno to test the functionality of the robot by moving it forward 
+	and back
 09/22/2025
-    This program was initially designed to move the Senior Design robot fowards and backwards just to test functionality
+	Updated to read a joystick through the analog pin and relocated functions and
+	definitions to a header file.
 */
 
 #include <Arduino.h>

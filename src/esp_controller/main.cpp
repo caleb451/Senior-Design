@@ -3,7 +3,8 @@ Author: Caleb Gomez
 Date: 09/22/2025
 Description:
 10/07/2025
-    This program is designed to wirelessly control the robot through the use of a joystick.
+    Updated to wirelessly control the robot using joystick control while communicating with 2 different esp32s.
+    This program will send the 'state' of the joystick to the esp32 on the robot.
 */
 
 #include <Arduino.h>
@@ -14,10 +15,17 @@ Description:
     #include <WiFi.h>
 #endif
 
+int xvalue = 0;
+int yvalue = 0;
+char state = ' ';
+
 void setup(){
     
 }
 
 void loop(){
+    xvalue = analogRead(x_axis);
+    yvalue = analogRead(y_axis);
 
+    state = joystickControl(xvalue, yvalue);
 }
