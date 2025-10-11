@@ -66,6 +66,12 @@ void setup(){
 void loop(){
     xvalue = analogRead(x_axis);
     yvalue = analogRead(y_axis);
+    Serial.print("\n\nX-value: ");
+
+    // Serial.print(xvalue);
+    // Serial.print("\nY-value: ");
+    // Serial.print(yvalue);
+    // delay(100);
 
     state = joystickControl(xvalue, yvalue);
 

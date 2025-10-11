@@ -18,8 +18,8 @@
     #define m2_bkwd 27
     #define m3_fwd  26
     #define m3_bkwd 25
-    #define m4_fwd  35
-    #define m4_bkwd 34
+    #define m4_fwd  33
+    #define m4_bkwd 32
   #endif
 #else
   //Digital Motor Pins

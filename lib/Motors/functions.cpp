@@ -30,24 +30,33 @@ void motorsRight() {
 }
 
 char joystickControl(int xvalue, int yvalue){
-    if ((yvalue >= 900) && ((xvalue <= 900) && (xvalue >= 400))) //foward
-        return '1';
-    if ((yvalue <= 400) && ((xvalue <= 900) && (xvalue >= 400))) //backward
-        return '2';
-    if ((xvalue >= 400) && ((yvalue <= 900) && (yvalue >= 400))) //strafe left
-        return '3';
-    if ((xvalue <= 900) && ((yvalue <= 900) && (yvalue >= 400))) //strafe right
-        return '4';
-    if ((xvalue <= 400) && (yvalue >= 900)) //front left
-        return '5';
-    if ((xvalue >= 900) && (yvalue >= 900)) //front right
-        return '6';
-    if ((xvalue <= 400) && (yvalue <= 400)) //back left
-        return '7';
-    if ((xvalue >= 900) && (yvalue >= 400)) //back right
-        return '8';
-    if (((yvalue >= 400) && (yvalue <= 900)) && ((xvalue >= 400) && (xvalue <= 900))) //Idle
+    #if ESP32
+        int high = 2500;
+        int low = 1000;
+    #else
+        int high = 900;
+        int low = 400;
+    #endif
+    if (((yvalue > low) && (yvalue < high)) && ((xvalue > low) && (xvalue < high))) //Idle
         return ' ';
+    if ((yvalue >= high) && ((xvalue <= high) && (xvalue >= low))) //foward
+        return '1';
+    if ((yvalue <= low) && ((xvalue <= high) && (xvalue >= low))) //backward
+        return '2';
+    if ((xvalue > low) && ((yvalue < high) && (yvalue > low))) //strafe left
+        return '3';
+    if ((xvalue < high) && ((yvalue < high) && (yvalue > low))) //strafe right
+        return '4';
+    if ((xvalue < low) && (yvalue > high)) //front left
+        return '5';
+    if ((xvalue > high) && (yvalue > high)) //front right
+        return '6';
+    if ((xvalue < low) && (yvalue < low)) //back left
+        return '7';
+    if ((xvalue > high) && (yvalue > high)) //back right
+        return '8';
+    
+    return ' '; // fallback idle
 }
 
 void test(){
