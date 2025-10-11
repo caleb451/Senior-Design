@@ -52,12 +52,6 @@ void OnDataRecv(const uint8_t *mac, const uint8_t *incomingDataBytes, int len) {
   }
 }
 
-
-int xvalue = 0;
-int yvalue = 0;
-char state = ' ';
-bool testing = false;
-
 int motors[8] = {m1_fwd, m2_fwd, m3_fwd, m4_fwd, m1_bkwd, m2_bkwd, m3_bkwd, m4_bkwd};
 int motors_fwd[4] = {m1_fwd, m2_fwd, m3_fwd, m4_fwd};
 int motors_bkwd[4] = {m1_bkwd, m2_bkwd, m3_bkwd, m4_bkwd};
