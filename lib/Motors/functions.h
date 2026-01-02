@@ -21,6 +21,17 @@
     #define m4_fwd  33
     #define m4_bkwd 32
   #endif
+  #ifdef ROBOT
+    #define m1_fwd  13
+    #define m1_bkwd 12
+    #define m2_fwd  14
+    #define m2_bkwd 27
+    #define m3_fwd  26
+    #define m3_bkwd 25
+    #define m4_fwd  33
+    #define m4_bkwd 32
+    #define PWMS 18
+  #endif
 #else
   //Digital Motor Pins
   #define m1_fwd  2
