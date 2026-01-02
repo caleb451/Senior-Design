@@ -9,6 +9,7 @@ Description:
 	Updated to read a joystick through the analog pin and relocated functions and
 	definitions to a header file.
 */
+#define UNO
 
 #include <Arduino.h>
 #include <functions.h>

@@ -29,6 +29,17 @@ void motorsRight() {
         digitalWrite(motors_right[i], HIGH);
 }
 
+void motorsRotateR() {
+    motorsOff();
+    for (int i = 0; i < 4; i++)
+        digitalWrite(motors_right[i], HIGH);
+}
+
+void motorsRotateL() {
+    motorsOff();
+    for (int i = 0; i < 4; i++)
+        digitalWrite(motors_right[i], HIGH);
+}
 char joystickControl(int xvalue, int yvalue){
     #if ESP32
         int high = 2500;

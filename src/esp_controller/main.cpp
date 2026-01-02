@@ -37,7 +37,7 @@ char state = ' ';
 
 void setup(){
     Serial.begin(115200);
-    //Serial.println(WiFi.macAddress()); //get the MAC Adress of the Controller 
+    // Serial.println(WiFi.macAddress()); //get the MAC Adress of the Controller 
 
     WiFi.mode(WIFI_STA);
     Serial.println("Controller initialized");

@@ -46,6 +46,12 @@ void OnDataRecv(const uint8_t *mac, const uint8_t *incomingDataBytes, int len) {
     case '4':
       motorsRight();
       break;
+    case '9':
+      motorsRotateR();
+      break;
+    case 'A':
+      motorsRotateL();
+      break;
     default:
       motorsOff();
       break;
@@ -57,10 +63,16 @@ int motors_fwd[4] = {m1_fwd, m2_fwd, m3_fwd, m4_fwd};
 int motors_bkwd[4] = {m1_bkwd, m2_bkwd, m3_bkwd, m4_bkwd};
 int motors_left[4] = {m1_bkwd, m2_fwd, m3_fwd, m4_bkwd};
 int motors_right[4] = {m1_fwd, m2_bkwd, m3_bkwd, m4_fwd};
+
+//diagonal group
 int motors_fleft[2] = {m2_fwd, m3_fwd};
 int motors_fright[2] = {m1_fwd, m4_fwd};
 int motors_bleft[2] = {m2_bkwd, m3_bkwd};
 int motors_bright[2] = {m1_bkwd, m4_bkwd};
+
+//rotational group
+int motors_Rleft[4] = {m1_bkwd, m3_bkwd, m2_fwd, m4_fwd};
+int motors_Rright[4] = {m1_fwd, m3_fwd, m2_bkwd, m4_bkwd};
 
 void setup() {
     Serial.begin(115200);
