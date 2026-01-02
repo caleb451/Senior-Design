@@ -8,6 +8,7 @@ Description:
 */
 #define RECIEVER
 #include <Arduino.h>
+#include <pins.h>
 #include <functions.h>
 
 #ifdef ESP32

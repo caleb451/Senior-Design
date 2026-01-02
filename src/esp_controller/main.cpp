@@ -8,6 +8,7 @@ Description:
 */
 #define CONTROLLER
 #include <Arduino.h>
+#include <pins.h>
 #include <functions.h>
 
 #ifdef ESP32
