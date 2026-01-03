@@ -5,12 +5,12 @@
 
 #ifdef ESP32
   //Digital Motor Pins
-  #if defined(CONTROLLER)
+  #ifdef CONTROLLER
     // Joystick analog pins only
     #define y_axis 32
     #define x_axis 33
   #endif
-  #if defined(RECIEVER) || !defined(ROBOT)
+  #ifdef RECIEVER
     // Motor pins only
     #define m1_fwd  13
     #define m1_bkwd 12

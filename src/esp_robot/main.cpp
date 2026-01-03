@@ -3,8 +3,21 @@
 // any sliping movements from the wheels and help with localization so that the robot can move to different points on
 // the field. 
 
-
-
 // To save time on executing lines of code, the program will be directly calling the GPIO pins from the esp32 allowing for faster speeds
 
+#include <Arduino.h>
 #include "Motors/fastfunctions.h"
+
+void setup(){
+    Serial.begin(115200);
+    motorsInit();
+}
+
+void loop(){
+    motorsFWD();
+    delay(1000);
+    motorsOFF();
+    delay(500);
+    motorsBKWD();
+    delay(1000);
+}

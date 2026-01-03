@@ -6,7 +6,6 @@ Description:
     Updated to wirelessly control the robot using joystick control while communicating with 2 different esp32s.
     This program will send the 'state' of the joystick to the esp32 on the robot.
 */
-#define CONTROLLER
 #include <Arduino.h>
 #include <pins.h>
 #include <functions.h>

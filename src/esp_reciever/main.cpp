@@ -6,9 +6,8 @@ Description:
     This program is designed to use the same functionality and base program used from the arduino uno but 
     uses the esp32_now protocol to recieve wireless communication between two esp32s.
 */
-#define RECIEVER
 #include <Arduino.h>
-#include <pins.h>
+#include "pins.h"
 #include <functions.h>
 
 #ifdef ESP32
