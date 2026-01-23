@@ -21,6 +21,7 @@ const uint32_t printInterval = 100;
 
 // BMI160 I2C address
 const uint8_t bmi_addr = 0x68;
+#define BMI160_CHANNEL 4
 
 // Encoder objects (all default address 0x36)
 AS5600 encoder1;
@@ -47,14 +48,78 @@ void resetEncoder(uint8_t index) {
     firstRead[index] = true;
 }
 
+void tcaDisable() {
+    Wire.beginTransmission(TCA_ADDR);
+    Wire.write(0);  // Disable all channels
+    Wire.endTransmission();
+    delayMicroseconds(100);
+}
+
+void i2cScanner() {
+    Serial.println("\n=== I2C Scanner ===");
+    
+    // Scan with multiplexer disabled
+    tcaDisable();
+    delay(50);
+    Serial.println("Main I2C Bus:");
+    
+    byte count = 0;
+    for (byte addr = 1; addr < 127; addr++) {
+        Wire.beginTransmission(addr);
+        if (Wire.endTransmission() == 0) {
+            Serial.print("  Found device at 0x");
+            if (addr < 16) Serial.print("0");
+            Serial.print(addr, HEX);
+            
+            // Identify known devices
+            if (addr == 0x70) Serial.print(" (TCA9548A)");
+            if (addr == 0x68) Serial.print(" (BMI160)");
+            if (addr == 0x36) Serial.print(" (AS5600 - shouldn't be here!)");
+            
+            Serial.println();
+            count++;
+        }
+    }
+    if (count == 0) Serial.println("  No devices found");
+    
+    // Scan each multiplexer channel
+    for (uint8_t ch = 0; ch < 8; ch++) {
+        tcaSelect(ch);
+        delay(10);
+        
+        Serial.print("Channel ");
+        Serial.print(ch);
+        Serial.print(": ");
+        
+        bool found = false;
+        for (byte addr = 1; addr < 127; addr++) {
+            Wire.beginTransmission(addr);
+            if (Wire.endTransmission() == 0) {
+                Serial.print("0x");
+                if (addr < 16) Serial.print("0");
+                Serial.print(addr, HEX);
+                Serial.print(" ");
+                found = true;
+            }
+        }
+        if (!found) Serial.print("(empty)");
+        Serial.println();
+    }
+    
+    tcaDisable();
+    Serial.println("===================\n");
+}
+
 void setup() {
     Serial.begin(115200);
     delay(200);
     Serial.println("\n=== Robot Sensors Test ((4)AS5600 + BMI160) ===");
 
     Wire.begin();
-    Wire.setClock(400000);  // 400 kHz
-    Wire.setTimeOut(5000);
+    Wire.setClock(100000);  // 400 kHz
+    Wire.setTimeOut(10000);
+
+    i2cScanner();
 
     // Initialize all 4 encoders
     for (uint8_t i = 0; i < 4; i++) {
@@ -74,18 +139,28 @@ void setup() {
     }
     delay(10);
 
-    // // Initialize BMI160
-    // Serial.print("BMI160 initialization ");
-    // if (bmi160.I2cInit(bmi_addr) == BMI160_OK) {
-    //     Serial.println("OK");
-    //     delay(100);  // Let sensor stabilize
-    // } else {
-    //     Serial.println("FAILED");
-    // }
+    tcaSelect(BMI160_CHANNEL);
+    delay(100);
+
+    Serial.print("BMI160 initialization (channel ");
+    Serial.print(BMI160_CHANNEL);
+    Serial.print(") ");
+    
+    if (bmi160.I2cInit(bmi_addr) == BMI160_OK) {
+        Serial.println("OK");
+        delay(100);
+    } else {
+        Serial.println("FAILED");
+    }
+
+    tcaDisable();
+    delay(50);
 
     Serial.println("\nReadings: \n");
     motorsInit();
 }
+
+
 
 void loop() {
     if (millis() - lastPrint >= printInterval) {
@@ -136,38 +211,42 @@ void loop() {
         }
         Serial.println();
 
+        // ───── Read BMI160 (channel 4) ─────
+        tcaSelect(BMI160_CHANNEL);
+        delay(5);
+
         // motorsFWD();
 
         // delay(5000);
         // motorsOFF();
         // delay(1000);
 
-        if((rotate >= rotations[0]) && (rotate >= rotations[1]) && (rotate >= rotations[2]) && (rotate >= rotations[3]))
-            motorsFWD();
-        else
-            motorsOFF();
+        // if((rotate >= rotations[0]) && (rotate >= rotations[1]) && (rotate >= rotations[2]) && (rotate >= rotations[3]))
+        //     motorsFWD();
+        // else
+        //     motorsOFF();
 
 
     //───── Read BMI160 ─────
-    // int16_t data[6] = {0};
-    // int rslt = bmi160.getAccelGyroData(data);
+    int16_t data[6] = {0};
+    int rslt = bmi160.getAccelGyroData(data);
 
-    // if (rslt == BMI160_OK) {
-    //     Serial.println("BMI160:");
-    //     Serial.print("  Gyro X/Y/Z (deg/s): ");
-    //     Serial.print(data[0] / 16.4, 2); Serial.print("  ");
-    //     Serial.print(data[1] / 16.4, 2); Serial.print("  ");
-    //     Serial.print(data[2] / 16.4, 2); Serial.println();
+    if (rslt == BMI160_OK) {
+        Serial.println("BMI160:");
+        Serial.print("  Gyro X/Y/Z (deg/s): ");
+        Serial.print(data[0] / 16.4, 2); Serial.print("  ");
+        Serial.print(data[1] / 16.4, 2); Serial.print("  ");
+        Serial.print(data[2] / 16.4, 2); Serial.println();
 
-    //     Serial.print("  Accel X/Y/Z (g):   ");
-    //     Serial.print(data[3] / 16384.0, 3); Serial.print("  ");
-    //     Serial.print(data[4] / 16384.0, 3); Serial.print("  ");
-    //     Serial.print(data[5] / 16384.0, 3); Serial.println();
-    // } else {
-    //     Serial.print("BMI160 read failed (error ");
-    //     Serial.print(rslt);
-    //     Serial.println(")");
-    // }
+        Serial.print("  Accel X/Y/Z (g):   ");
+        Serial.print(data[3] / 16384.0, 3); Serial.print("  ");
+        Serial.print(data[4] / 16384.0, 3); Serial.print("  ");
+        Serial.print(data[5] / 16384.0, 3); Serial.println();
+    } else {
+        Serial.print("BMI160 read failed (error ");
+        Serial.print(rslt);
+        Serial.println(")");
+    }
 
         Serial.println("----------------------------------------");
     }
