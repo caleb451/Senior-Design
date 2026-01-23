@@ -1,106 +1,174 @@
-// This is the file where the robot will be programmed for its autonomy. The Pi5 for the original computer vision
-// vision program broke so everything will be programmed through the esp-32. The esp32 will have encoders to verify
-// any sliping movements from the wheels and help with localization so that the robot can move to different points on
-// the field. 
-
-// To save time on executing lines of code, the program will be directly calling the GPIO pins from the esp32 allowing for faster speeds
-
 #include <Arduino.h>
-#include "Motors/fastfunctions.h"
 #include <Wire.h>
 #include <AS5600.h>
+#include <DFRobot_BMI160.h>
+#include "Motors/fastfunctions.h"
 
-AS5600 as5600;
 
-// Rotation tracking
-int32_t totalRotations = 0;        // Total full revolutions (positive = CW, negative = CCW)
-float previousAngleDeg = 0.0;      // Previous reading for wrap detection
-bool firstReading = true;
+float diameter = 108; // 4.25in or 108mm
 
-void setup(){
-    Serial.begin(115200);
-    Wire.begin();
+int rotate = 20;
 
-    Serial.println("AS5600 Test");
-    if (as5600.isConnected()) {
-        Serial.println("AS5600 connected!");
-    } else {
-        Serial.println("AS5600 not found!");
-    }
+static int32_t rotations[4] = {0};
+static uint16_t lastRaw[4] = {0};
+static bool firstRead[4] = {true};
 
-    //motorsInit();
+static uint32_t lastPrint = 0;
+const uint32_t printInterval = 100;
+
+// TCA9548A I2C address (default)
+#define TCA_ADDR 0x70
+
+// BMI160 I2C address
+const uint8_t bmi_addr = 0x68;
+
+// Encoder objects (all default address 0x36)
+AS5600 encoder1;
+AS5600 encoder2;
+AS5600 encoder3;
+AS5600 encoder4;
+
+AS5600* encoders[4] = {&encoder1, &encoder2, &encoder3, &encoder4};
+
+// BMI160 object
+DFRobot_BMI160 bmi160;
+
+// Select TCA9548A channel
+void tcaSelect(uint8_t channel) {
+    if (channel > 7) return;
+    Wire.beginTransmission(TCA_ADDR);
+    Wire.write(1 << channel);
+    Wire.endTransmission();
+    delayMicroseconds(100);  // Settle time for multiplexer
 }
 
-void loop(){
-    static uint32_t lastPrint = 0;
-    const uint32_t printInterval = 100;  // Print every 100ms
-    
+void resetEncoder(uint8_t index) {
+    rotations[index] = 0;
+    firstRead[index] = true;
+}
 
+void setup() {
+    Serial.begin(115200);
+    delay(200);
+    Serial.println("\n=== Robot Sensors Test ((4)AS5600 + BMI160) ===");
+
+    Wire.begin();
+    Wire.setClock(400000);  // 400 kHz
+    Wire.setTimeOut(5000);
+
+    // Initialize all 4 encoders
+    for (uint8_t i = 0; i < 4; i++) {
+        tcaSelect(i);
+        Serial.print("Encoder ");
+        Serial.print(i);
+        Serial.print(" initialization ");
+
+        delay(10);
+
+        if (encoders[i]->begin() == 0){
+            Serial.println("OK");
+            lastRaw[i] = encoders[i] -> rawAngle();
+        }
+        else
+            Serial.println("FAILED " + String(i));
+    }
+    delay(10);
+
+    // // Initialize BMI160
+    // Serial.print("BMI160 initialization ");
+    // if (bmi160.I2cInit(bmi_addr) == BMI160_OK) {
+    //     Serial.println("OK");
+    //     delay(100);  // Let sensor stabilize
+    // } else {
+    //     Serial.println("FAILED");
+    // }
+
+    Serial.println("\nReadings: \n");
+    motorsInit();
+}
+
+void loop() {
     if (millis() - lastPrint >= printInterval) {
         lastPrint = millis();
 
-        // Read raw angle and convert to degrees
-        uint16_t rawVal = as5600.rawAngle();
-        float currentAngleDeg = rawVal * AS5600_RAW_TO_DEGREES;  // 0.0 to 359.91...
+        // Reading the 4 Encoders
+        Serial.println("Encoders:");
+        for (uint8_t i = 0; i < 4; i++) {
+            tcaSelect(i);
 
-        // === Rotation Counting Logic ===
-        if (!firstReading) {
-            float delta = currentAngleDeg - previousAngleDeg;
+            uint16_t raw = encoders[i] -> rawAngle();
+            float deg = raw * (360.0 / 4096.0);
 
-            // Detect wrap-around
-            if (delta > 180.0) {              // Crossed from ~359° to ~0° (clockwise wrap)
-                delta -= 360.0;
-                totalRotations--;
-            } else if (delta < -180.0) {      // Crossed from ~0° to ~359° (counter-clockwise wrap)
-                delta += 360.0;
-                totalRotations++;
+            // Rotation Detection
+            if (!firstRead[i]) {
+                int32_t delta = (int32_t)raw - (int32_t)lastRaw[i];
+                
+                // Detect crossing boundary
+                if (delta > 2048) 
+                    rotations[i]--; // (counter-clockwise)
+                else if (delta < -2048) 
+                    rotations[i]++; // (clockwise)
             }
+            
+            lastRaw[i] = raw;
+            firstRead[i] = false;
 
-            // Optional: Use delta for velocity calculation later
-        } else {
-            firstReading = false;  // First valid reading, just store it
+            // Calculate Total Position
+            float totalDegrees = (rotations[i] * 360.0) + deg;
+            
+            // Prints the values of the encoders
+            Serial.print("  Encoder ");
+            Serial.print(i);
+            Serial.print(": ");
+            Serial.print(deg, 1);
+            Serial.print(" degree (");
+            Serial.print(raw);
+            Serial.print(") | Rotation: ");
+            Serial.print(rotations[i]);
+            Serial.print(" | Total: ");
+            Serial.print(totalDegrees, 1);
+            Serial.print(" degree");
+
+            if (encoders[i]->detectMagnet())
+                Serial.println("  [OK]");
+            else
+                Serial.println("  [UNSTABLE]");
         }
+        Serial.println();
 
-        previousAngleDeg = currentAngleDeg;
+        // motorsFWD();
 
-        // === Serial Output ===
-        Serial.print("Raw: ");
-        Serial.print(rawVal);
-        Serial.print(" | Angle: ");
-        Serial.print(currentAngleDeg, 2);
-        Serial.print("° | Total Rotations: ");
-        Serial.print(totalRotations);
+        // delay(5000);
+        // motorsOFF();
+        // delay(1000);
 
-        // Magnet status
-        if (as5600.detectMagnet()) {
-            Serial.println(" | Magnet: OK");
-        } else {
-            Serial.println(" | Magnet: ISSUE");
-        }
-    }
+        if((rotate >= rotations[0]) && (rotate >= rotations[1]) && (rotate >= rotations[2]) && (rotate >= rotations[3]))
+            motorsFWD();
+        else
+            motorsOFF();
 
-    // === Example Motor Test Sequence ===
-    // Remove or comment this out once you're done testing!
-    // static uint32_t motorTimer = 0;
-    // uint32_t now = millis();
 
-    // if (now - motorTimer < 2000) {
-    //     motorsFWD();     // Forward for 2 seconds
-    // } else if (now - motorTimer < 3000) {
-    //     motorsOFF();         // Off for 1 second
-    // } else if (now - motorTimer < 5000) {
-    //     motorsBKWD();    // Backward for 2 seconds
-    // } else if (now - motorTimer < 6000) {
-    //     motorsOFF();         // Off for 1 second
+    //───── Read BMI160 ─────
+    // int16_t data[6] = {0};
+    // int rslt = bmi160.getAccelGyroData(data);
+
+    // if (rslt == BMI160_OK) {
+    //     Serial.println("BMI160:");
+    //     Serial.print("  Gyro X/Y/Z (deg/s): ");
+    //     Serial.print(data[0] / 16.4, 2); Serial.print("  ");
+    //     Serial.print(data[1] / 16.4, 2); Serial.print("  ");
+    //     Serial.print(data[2] / 16.4, 2); Serial.println();
+
+    //     Serial.print("  Accel X/Y/Z (g):   ");
+    //     Serial.print(data[3] / 16384.0, 3); Serial.print("  ");
+    //     Serial.print(data[4] / 16384.0, 3); Serial.print("  ");
+    //     Serial.print(data[5] / 16384.0, 3); Serial.println();
     // } else {
-    //     motorTimer = now;    // Reset cycle
+    //     Serial.print("BMI160 read failed (error ");
+    //     Serial.print(rslt);
+    //     Serial.println(")");
     // }
 
-    // delay(100);  // Adjust for your loop rate
-    // motorsFWD();
-    // delay(1000);
-    // motorsOFF();
-    // delay(500);
-    // motorsBKWD();
-    // delay(1000);
+        Serial.println("----------------------------------------");
+    }
 }
