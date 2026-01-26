@@ -4,17 +4,55 @@
 #include <DFRobot_BMI160.h>
 #include "Motors/fastfunctions.h"
 
-
 float diameter = 108; // 4.25in or 108mm
+float wheelCircumference = PI * diameter; // mm
 
-int rotate = 20;
+enum MovementMode {
+    MOVE_FWD,
+    MOVE_BACK,
+    STRAFE_LEFT,
+    STRAFE_RIGHT,
+    ROT_LEFT,
+    ROT_RIGHT
+};
+MovementMode currentMode = MOVE_FWD;
+
+// Expected rotation direction for each wheel in each mode (+1 = forward, -1 = backward, 0 = not used)
+const int8_t wheelDirection[6][4] = {
+    // M1  M2  M3  M4
+    {  1,  1,  1,  1 },  // MOVE_FWD
+    { -1, -1, -1, -1 },  // MOVE_BACK
+    { -1,  1,  1, -1 },  // STRAFE_LEFT
+    {  1, -1, -1,  1 },  // STRAFE_RIGHT
+    { -1,  1, -1,  1 },  // ROT_LEFT
+    {  1, -1,  1, -1 }   // ROT_RIGHT
+};
+
+// Test state variables
+bool testActive = false;
+float targetRotations = 0.0;
+uint32_t testStartTime = 0;
+float initialRotations[4] = {0};
 
 static int32_t rotations[4] = {0};
 static uint16_t lastRaw[4] = {0};
 static bool firstRead[4] = {true};
 
-static uint32_t lastPrint = 0;
-const uint32_t printInterval = 100;
+// Cached encoder data (updated frequently)
+static float wheelRotations[4] = {0};   // total rotations including partial
+static float wheelDegrees[4] = {0};     // current absolute angle (0-360)
+static float wheelDistance[4] = {0};    // mm traveled
+static bool  wheelMagnetOK[4] = {false};
+
+// IMU-based movement verification
+static float lastAccelMag = 1.0f;       // at rest = 1.0g
+static bool imuMovementDetected = false;
+
+static uint32_t lastEncoderUpdate = 0;
+const uint32_t encoderUpdateInterval = 50; // update encoders every 50 ms
+
+static uint32_t lastValuesPrint = 0;
+const uint32_t valuesPrintInterval = 200; // Print values every 200ms
 
 // TCA9548A I2C address (default)
 #define TCA_ADDR 0x70
@@ -53,6 +91,93 @@ void tcaDisable() {
     Wire.write(0);  // Disable all channels
     Wire.endTransmission();
     delayMicroseconds(100);
+}
+
+// ─────────────────────────────────────────────────
+// Update encoder readings and cache computed values
+// ─────────────────────────────────────────────────
+void updateEncoders() {
+    for (uint8_t i = 0; i < 4; i++) {
+        tcaSelect(i);
+
+        uint16_t raw = encoders[i]->rawAngle();
+        float deg = raw * (360.0f / 4096.0f);
+
+        // Rotation Detection
+        if (!firstRead[i]) {
+            int32_t delta = (int32_t)raw - (int32_t)lastRaw[i];
+
+            if (delta > 2048)
+                rotations[i]--;
+            else if (delta < -2048)
+                rotations[i]++;
+        }
+
+        lastRaw[i] = raw;
+        firstRead[i] = false;
+
+        // Cache computed values
+        wheelDegrees[i] = deg;
+        // Invert encoder readings for M2 (wheel 1) and M4 (wheel 3) - mounted backward
+        float actualRotations = rotations[i] + (deg / 360.0f);
+        if (i == 1 || i == 3) {
+            wheelRotations[i] = -actualRotations;
+        } else {
+            wheelRotations[i] = actualRotations;
+        }
+        wheelDistance[i] = wheelRotations[i] * wheelCircumference;
+        wheelMagnetOK[i] = encoders[i]->detectMagnet();
+    }
+
+    // Also update IMU for movement detection
+    tcaSelect(BMI160_CHANNEL);
+    delay(2);
+    int16_t data[6] = {0};
+    int rslt = bmi160.getAccelGyroData(data);
+    if (rslt == BMI160_OK) {
+        float accelX = data[3] / 16384.0f;
+        float accelY = data[4] / 16384.0f;
+        float accelZ = data[5] / 16384.0f;
+        lastAccelMag = sqrt(accelX*accelX + accelY*accelY + accelZ*accelZ);
+        // Movement detected if far from 1.0g (at rest) - looser threshold for ground vibration
+        imuMovementDetected = (lastAccelMag > 1.02f || lastAccelMag < 0.95f);
+    }
+
+    tcaDisable();
+}
+
+inline void applyMovement(MovementMode mode) {
+    switch (mode) {
+        case MOVE_FWD:      motorsFWD();          break;
+        case MOVE_BACK:     motorsBKWD();         break;
+        case STRAFE_LEFT:   motorsSTRAFE_LEFT();  break;
+        case STRAFE_RIGHT:  motorsSTRAFE_RIGHT(); break;
+        case ROT_LEFT:      motorsROT_LEFT();     break;
+        case ROT_RIGHT:     motorsROT_RIGHT();    break;
+    }
+}
+
+void printValues() {
+    // Simple display of encoder and IMU values
+    Serial.print("W0:");
+    Serial.print(wheelRotations[0], 2);
+    Serial.print("  W1:");
+    Serial.print(wheelRotations[1], 2);
+    Serial.print("  W2:");
+    Serial.print(wheelRotations[2], 2);
+    Serial.print("  W3:");
+    Serial.print(wheelRotations[3], 2);
+    Serial.print("  | Accel:");
+    Serial.print(lastAccelMag, 3);
+    Serial.print("g");
+    
+    if (testActive) {
+        Serial.print("  [TEST: ");
+        Serial.print(currentMode);
+        Serial.print("]");
+    }
+    
+    Serial.println();
 }
 
 void i2cScanner() {
@@ -110,18 +235,86 @@ void i2cScanner() {
     Serial.println("===================\n");
 }
 
+// ═══════════════════════════════════════════════════════════════
+// TEST FUNCTIONS FOR MOVEMENT VERIFICATION
+// ═══════════════════════════════════════════════════════════════
+
+void startMovementTest(float numRotations, MovementMode mode) {
+    testActive = true;
+    targetRotations = numRotations;
+    currentMode = mode;
+    testStartTime = millis();
+
+    // Refresh encoders to capture current position before starting
+    updateEncoders();
+    
+    // Record initial encoder values
+    for (uint8_t i = 0; i < 4; i++) {
+        initialRotations[i] = wheelRotations[i];
+    }
+    
+    Serial.println("\n");
+    Serial.println("╔════════════════════════════════════════════════╗");
+    Serial.println("║     ▶ MOVEMENT TEST STARTED ◀                  ║");
+    Serial.print("║  Target: ");
+    Serial.print(numRotations);
+    Serial.println(" rotations per wheel            ║");
+    Serial.print("║  Distance: ");
+    Serial.print(numRotations * wheelCircumference, 0);
+    Serial.println(" mm                          ║");
+    Serial.println("╚════════════════════════════════════════════════╝\n");
+    
+    applyMovement(mode);
+}
+
+void stopMovementTest() {
+    // Capture final encoder state
+    updateEncoders();
+
+    motorsOFF();
+    testActive = false;
+    
+    uint32_t testDuration = millis() - testStartTime;
+    
+    Serial.println("\n╔════════════════════════════════════════════════╗");
+    Serial.println("║     MOVEMENT TEST COMPLETED                    ║");
+    Serial.print("║  Duration: ");
+    Serial.print(testDuration);
+    Serial.println(" ms                       ║");
+    Serial.println("║  SUMMARY:                                      ║");
+    
+    for (uint8_t i = 0; i < 4; i++) {
+        float actualRotations = wheelRotations[i] - initialRotations[i];
+        float distance = actualRotations * wheelCircumference;
+        
+        Serial.print("║  Wheel ");
+        Serial.print(i);
+        Serial.print(": ");
+        Serial.print(actualRotations, 2);
+        Serial.print(" rot (");
+        Serial.print(distance, 0);
+        Serial.println(" mm)");
+    }
+    Serial.println("╚════════════════════════════════════════════════╝\n");
+}
+
 void setup() {
     Serial.begin(115200);
     delay(200);
-    Serial.println("\n=== Robot Sensors Test ((4)AS5600 + BMI160) ===");
+    
+    Serial.println("\n╔════════════════════════════════════════════════╗");
+    Serial.println("║  Robot Movement & Sensor Verification Test     ║");
+    Serial.println("║  (4x AS5600 Encoders + BMI160 IMU)             ║");
+    Serial.println("╚════════════════════════════════════════════════╝");
 
     Wire.begin();
-    Wire.setClock(100000);  // 400 kHz
+    Wire.setClock(100000);  // 100 kHz for stability
     Wire.setTimeOut(10000);
 
     i2cScanner();
 
     // Initialize all 4 encoders
+    Serial.println("\n[ENCODER INITIALIZATION]");
     for (uint8_t i = 0; i < 4; i++) {
         tcaSelect(i);
         Serial.print("Encoder ");
@@ -131,123 +324,290 @@ void setup() {
         delay(10);
 
         if (encoders[i]->begin() == 0){
-            Serial.println("OK");
+            Serial.println("✓ OK");
             lastRaw[i] = encoders[i] -> rawAngle();
         }
         else
-            Serial.println("FAILED " + String(i));
+            Serial.println("✗ FAILED");
     }
-    delay(10);
+
+    // Prime cached encoder values
+    updateEncoders();
 
     tcaSelect(BMI160_CHANNEL);
     delay(100);
 
-    Serial.print("BMI160 initialization (channel ");
+    Serial.print("\n[BMI160 INITIALIZATION]");
+    Serial.print("\nBMI160 on channel ");
     Serial.print(BMI160_CHANNEL);
-    Serial.print(") ");
+    Serial.print(" ");
     
     if (bmi160.I2cInit(bmi_addr) == BMI160_OK) {
-        Serial.println("OK");
+        Serial.println("✓ OK");
         delay(100);
     } else {
-        Serial.println("FAILED");
+        Serial.println("✗ FAILED");
     }
 
     tcaDisable();
     delay(50);
 
-    Serial.println("\nReadings: \n");
     motorsInit();
+    delay(100);
+    motorsOFF();
+    delay(100);
+
+    Serial.println("\n╔════════════════════════════════════════════════════╗");
+    Serial.println("║          SYSTEM READY - COMMANDS:                 ║");
+    Serial.println("║  M<num>  = Forward (legacy)                       ║");
+    Serial.println("║  MF<num> = Forward rotations (e.g. MF5)           ║");
+    Serial.println("║  MB<num> = Backward rotations                     ║");
+    Serial.println("║  SL<num> = Strafe Left rotations                  ║");
+    Serial.println("║  SR<num> = Strafe Right rotations                 ║");
+    Serial.println("║  RL<num> = Rotate Left rotations                  ║");
+    Serial.println("║  RR<num> = Rotate Right rotations                 ║");
+    Serial.println("║  TEST    = Motor diagnostic (check wiring)        ║");
+    Serial.println("║  STOP    = Stop test immediately                  ║");
+    Serial.println("║  HELP    = Show all available commands            ║");
+    Serial.println("╚════════════════════════════════════════════════════╝");
 }
 
 
 
+
+
 void loop() {
-    if (millis() - lastPrint >= printInterval) {
-        lastPrint = millis();
-
-        // Reading the 4 Encoders
-        Serial.println("Encoders:");
-        for (uint8_t i = 0; i < 4; i++) {
-            tcaSelect(i);
-
-            uint16_t raw = encoders[i] -> rawAngle();
-            float deg = raw * (360.0 / 4096.0);
-
-            // Rotation Detection
-            if (!firstRead[i]) {
-                int32_t delta = (int32_t)raw - (int32_t)lastRaw[i];
-                
-                // Detect crossing boundary
-                if (delta > 2048) 
-                    rotations[i]--; // (counter-clockwise)
-                else if (delta < -2048) 
-                    rotations[i]++; // (clockwise)
-            }
-            
-            lastRaw[i] = raw;
-            firstRead[i] = false;
-
-            // Calculate Total Position
-            float totalDegrees = (rotations[i] * 360.0) + deg;
-            
-            // Prints the values of the encoders
-            Serial.print("  Encoder ");
-            Serial.print(i);
-            Serial.print(": ");
-            Serial.print(deg, 1);
-            Serial.print(" degree (");
-            Serial.print(raw);
-            Serial.print(") | Rotation: ");
-            Serial.print(rotations[i]);
-            Serial.print(" | Total: ");
-            Serial.print(totalDegrees, 1);
-            Serial.print(" degree");
-
-            if (encoders[i]->detectMagnet())
-                Serial.println("  [OK]");
-            else
-                Serial.println("  [UNSTABLE]");
-        }
-        Serial.println();
-
-        // ───── Read BMI160 (channel 4) ─────
-        tcaSelect(BMI160_CHANNEL);
-        delay(5);
-
-        // motorsFWD();
-
-        // delay(5000);
-        // motorsOFF();
-        // delay(1000);
-
-        // if((rotate >= rotations[0]) && (rotate >= rotations[1]) && (rotate >= rotations[2]) && (rotate >= rotations[3]))
-        //     motorsFWD();
-        // else
-        //     motorsOFF();
-
-
-    //───── Read BMI160 ─────
-    int16_t data[6] = {0};
-    int rslt = bmi160.getAccelGyroData(data);
-
-    if (rslt == BMI160_OK) {
-        Serial.println("BMI160:");
-        Serial.print("  Gyro X/Y/Z (deg/s): ");
-        Serial.print(data[0] / 16.4, 2); Serial.print("  ");
-        Serial.print(data[1] / 16.4, 2); Serial.print("  ");
-        Serial.print(data[2] / 16.4, 2); Serial.println();
-
-        Serial.print("  Accel X/Y/Z (g):   ");
-        Serial.print(data[3] / 16384.0, 3); Serial.print("  ");
-        Serial.print(data[4] / 16384.0, 3); Serial.print("  ");
-        Serial.print(data[5] / 16384.0, 3); Serial.println();
-    } else {
-        Serial.print("BMI160 read failed (error ");
-        Serial.print(rslt);
-        Serial.println(")");
+    // ─────────────────────────────────────────────────
+    // Periodic encoder refresh (for accurate stopping)
+    // ─────────────────────────────────────────────────
+    if (millis() - lastEncoderUpdate >= encoderUpdateInterval) {
+        lastEncoderUpdate = millis();
+        updateEncoders();
     }
 
-        Serial.println("----------------------------------------");
+    // ─────────────────────────────────────────────────
+    // HANDLE SERIAL COMMANDS
+    // ─────────────────────────────────────────────────
+    if (Serial.available()) {
+        String command = Serial.readStringUntil('\n');
+        command.trim();
+        command.toUpperCase();
+        
+        if (command.startsWith("MF")) {
+            float rotations_val = command.substring(2).toFloat();
+            if (rotations_val > 0) {
+                startMovementTest(rotations_val, MOVE_FWD);
+            } else {
+                Serial.println("Invalid rotation value\n");
+            }
+        }
+        else if (command.startsWith("MB")) {
+            float rotations_val = command.substring(2).toFloat();
+            if (rotations_val > 0) {
+                startMovementTest(rotations_val, MOVE_BACK);
+            } else {
+                Serial.println("Invalid rotation value\n");
+            }
+        }
+        else if (command.startsWith("M")) {
+            // Legacy: M<num> defaults to forward
+            float rotations_val = command.substring(1).toFloat();
+            if (rotations_val > 0) {
+                startMovementTest(rotations_val, MOVE_FWD);
+            } else {
+                Serial.println("Invalid rotation value. Use format: M5 (for 5 rotations)\n");
+            }
+        }
+        else if (command.startsWith("SL")) {
+            float rotations_val = command.substring(2).toFloat();
+            if (rotations_val > 0) startMovementTest(rotations_val, STRAFE_LEFT);
+        }
+        else if (command.startsWith("SR")) {
+            float rotations_val = command.substring(2).toFloat();
+            if (rotations_val > 0) startMovementTest(rotations_val, STRAFE_RIGHT);
+        }
+        else if (command.startsWith("RL")) {
+            float rotations_val = command.substring(2).toFloat();
+            if (rotations_val > 0) startMovementTest(rotations_val, ROT_LEFT);
+        }
+        else if (command.startsWith("RR")) {
+            float rotations_val = command.substring(2).toFloat();
+            if (rotations_val > 0) startMovementTest(rotations_val, ROT_RIGHT);
+        }
+        else if (command == "STOP") {
+            if (testActive) {
+                stopMovementTest();
+            } else {
+                motorsOFF();
+                Serial.println("No test active.\n");
+            }
+        }
+        else if (command == "TEST") {
+            Serial.println("\n=== MOTOR DIAGNOSTIC TEST ===");
+            Serial.println("Testing each motor individually for 2 seconds...");
+            Serial.println("Watch encoders - all should show POSITIVE rotation!\n");
+            
+            motorsOFF();
+            updateEncoders();
+            float testStart[4];
+            for (int i=0; i<4; i++) testStart[i] = wheelRotations[i];
+            delay(1000);
+            
+            Serial.println("M1 FWD (Wheel 0)");
+            GPIO.out_w1ts = (1UL << M1_FWD);
+            delay(2000);
+            motorsOFF();
+            updateEncoders();
+            Serial.print("  Result: ");
+            Serial.print(wheelRotations[0] - testStart[0], 2);
+            Serial.println(wheelRotations[0] - testStart[0] > 0 ? " rot [OK]" : " rot [WIRED BACKWARD!]");
+            for (int i=0; i<4; i++) testStart[i] = wheelRotations[i];
+            delay(1000);
+            
+            Serial.println("M2 FWD (Wheel 1)");
+            GPIO.out_w1ts = (1UL << M2_FWD);
+            delay(2000);
+            motorsOFF();
+            updateEncoders();
+            Serial.print("  Result: ");
+            Serial.print(wheelRotations[1] - testStart[1], 2);
+            Serial.println(wheelRotations[1] - testStart[1] > 0 ? " rot [OK]" : " rot [WIRED BACKWARD!]");
+            for (int i=0; i<4; i++) testStart[i] = wheelRotations[i];
+            delay(1000);
+            
+            Serial.println("M3 FWD (Wheel 2)");
+            GPIO.out_w1ts = (1UL << M3_FWD);
+            delay(2000);
+            motorsOFF();
+            updateEncoders();
+            Serial.print("  Result: ");
+            Serial.print(wheelRotations[2] - testStart[2], 2);
+            Serial.println(wheelRotations[2] - testStart[2] > 0 ? " rot [OK]" : " rot [WIRED BACKWARD!]");
+            for (int i=0; i<4; i++) testStart[i] = wheelRotations[i];
+            delay(1000);
+            
+            Serial.println("M4 FWD (Wheel 3)");
+            GPIO.out_w1ts = (1UL << M4_FWD);
+            delay(2000);
+            motorsOFF();
+            updateEncoders();
+            Serial.print("  Result: ");
+            Serial.print(wheelRotations[3] - testStart[3], 2);
+            Serial.println(wheelRotations[3] - testStart[3] > 0 ? " rot [OK]" : " rot [WIRED BACKWARD!]");
+            
+            Serial.println("\n=== TEST COMPLETE ===");
+            Serial.println("Swap FWD/BKWD wires for any motor showing BACKWARD!\n");
+        }
+        else if (command == "TEST") {
+            Serial.println("\n=== MOTOR DIAGNOSTIC TEST ===");
+            Serial.println("Testing each motor individually for 2 seconds...");
+            Serial.println("Expected: All wheels should spin FORWARD\n");
+            
+            motorsOFF();
+            delay(1000);
+            
+            Serial.println("M1 FWD (Wheel 0) - Should rotate FORWARD");
+            GPIO.out_w1ts = (1UL << M1_FWD);
+            delay(2000);
+            motorsOFF();
+            delay(1000);
+            
+            Serial.println("M2 FWD (Wheel 1) - Should rotate FORWARD");
+            GPIO.out_w1ts = (1UL << M2_FWD);
+            delay(2000);
+            motorsOFF();
+            delay(1000);
+            
+            Serial.println("M3 FWD (Wheel 2) - Should rotate FORWARD");
+            GPIO.out_w1ts = (1UL << M3_FWD);
+            delay(2000);
+            motorsOFF();
+            delay(1000);
+            
+            Serial.println("M4 FWD (Wheel 3) - Should rotate FORWARD");
+            GPIO.out_w1ts = (1UL << M4_FWD);
+            delay(2000);
+            motorsOFF();
+            
+            Serial.println("\n=== TEST COMPLETE ===");
+            Serial.println("If any wheel rotated BACKWARD, that motor is wired incorrectly!");
+            Serial.println("Swap FWD/BKWD wires for backward-rotating motors.\n");
+        }
+        else if (command == "HELP") {
+            Serial.println("\n╔════════════════════════════════════════════════╗");
+            Serial.println("║        AVAILABLE COMMANDS                      ║");
+            Serial.println("╠════════════════════════════════════════════════╣");
+            Serial.println("║ M<num>  - Forward (legacy)                    ║");
+            Serial.println("║ MF<num> - Move Forward <num> rotations        ║");
+            Serial.println("║ MB<num> - Move Backward <num> rotations       ║");
+            Serial.println("║ SL<num> - Strafe Left <num> rotations         ║");
+            Serial.println("║ SR<num> - Strafe Right <num> rotations        ║");
+            Serial.println("║ RL<num> - Rotate Left <num> rotations         ║");
+            Serial.println("║ RR<num> - Rotate Right <num> rotations        ║");
+            Serial.println("║ TEST    - Run motor diagnostic test           ║");
+            Serial.println("║ STOP    - Stop test immediately               ║");
+            Serial.println("║ STATUS  - Show current test status            ║");
+            Serial.println("║ HELP    - Show this help message              ║");
+            Serial.println("╚════════════════════════════════════════════════╝\n");
+        }
+        else if (command == "STATUS") {
+            Serial.println("\n[TEST STATUS]");
+            if (testActive) {
+                Serial.println("Status: RUNNING");
+                Serial.print("Target: ");
+                Serial.print(targetRotations);
+                Serial.println(" rotations");
+            } else {
+                Serial.println("Status: IDLE");
+            }
+            Serial.println();
+        }
+        else if (command.length() > 0) {
+            Serial.println("Unknown command. Type 'HELP' for available commands.\n");
+        }
+    }
+
+    // ─────────────────────────────────────────────────
+    // CHECK TEST COMPLETION
+    // ─────────────────────────────────────────────────
+    if (testActive) {
+        static uint32_t movementStartTime = 0;
+        
+        // Check if all active wheels have reached target in their expected direction
+        bool encodersReached = true;
+        for (uint8_t i = 0; i < 4; i++) {
+            int8_t expectedDir = wheelDirection[currentMode][i];
+            if (expectedDir == 0) continue; // Wheel not used in this mode
+            
+            float currentRotations = wheelRotations[i] - initialRotations[i];
+            float signedTarget = targetRotations * expectedDir;
+            
+            // Check if wheel has reached target in the expected direction
+            if (expectedDir > 0 && currentRotations < signedTarget - 0.05f) {
+                encodersReached = false;
+                break;
+            } else if (expectedDir < 0 && currentRotations > signedTarget + 0.05f) {
+                encodersReached = false;
+                break;
+            }
+        }
+
+        // Track when movement first detected for timeout
+        if (movementStartTime == 0 && imuMovementDetected) {
+            movementStartTime = millis();
+        }
+        
+        bool enoughTimeElapsed = (movementStartTime > 0 && millis() - movementStartTime > 200);
+        
+        if (encodersReached && (imuMovementDetected || enoughTimeElapsed)) {
+            stopMovementTest();
+            movementStartTime = 0; // Reset for next test
+        }
+    }
+
+    // Print sensor values periodically
+    if (millis() - lastValuesPrint >= valuesPrintInterval) {
+        lastValuesPrint = millis();
+        printValues();
     }
 }
