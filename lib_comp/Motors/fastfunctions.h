@@ -5,15 +5,14 @@
 #include <driver/gpio.h>
 #include "soc/gpio_struct.h"
 
-#define M1_FWD  13
-#define M1_BKWD 12
-#define M2_FWD  14
-#define M2_BKWD 27
-#define M3_FWD  26
-#define M3_BKWD 25
-#define M4_FWD  11
-#define M4_BKWD 15
-#define PWM 10
+#define M1_FWD  18
+#define M1_BKWD 19
+#define M2_FWD  16
+#define M2_BKWD 17
+#define M3_FWD  14
+#define M3_BKWD 27
+#define M4_FWD  13
+#define M4_BKWD 12
 
 // This is to mask all the gpio pins simultaneously using bitwise ORs
 // exp: GPIO pin 2 needs to be enabled (1), In a 32 bit system : 0010 -pin 2 enabled.
@@ -23,6 +22,14 @@ constexpr uint32_t ALL_MOTOR_MASK = (1UL << M1_FWD) | (1UL << M1_BKWD) | (1UL <<
 constexpr uint32_t FWD_MASK =       (1UL << M1_FWD) | (1UL << M2_FWD) | (1UL << M3_FWD) | (1UL << M4_FWD);
 
 constexpr uint32_t BKWD_MASK =      (1UL << M1_BKWD) | (1UL << M2_BKWD) | (1UL << M3_BKWD) | (1UL << M4_BKWD);
+
+// Holonomic strafing (aligns with original motors_left/motors_right mapping)
+constexpr uint32_t STRAFE_LEFT_MASK  = (1UL << M1_BKWD) | (1UL << M2_FWD)  | (1UL << M3_FWD)  | (1UL << M4_BKWD);
+constexpr uint32_t STRAFE_RIGHT_MASK = (1UL << M1_FWD)  | (1UL << M2_BKWD) | (1UL << M3_BKWD) | (1UL << M4_FWD);
+
+// In-place rotation (matches motors_Rleft/motors_Rright)
+constexpr uint32_t ROT_LEFT_MASK  = (1UL << M1_BKWD) | (1UL << M3_BKWD) | (1UL << M2_FWD)  | (1UL << M4_FWD);
+constexpr uint32_t ROT_RIGHT_MASK = (1UL << M1_FWD)  | (1UL << M3_FWD)  | (1UL << M2_BKWD) | (1UL << M4_BKWD);
 
 // Inline lets the functions compile to direct registers instead of pushing arguments or returning (optimized)
 inline void motorsOFF(){
@@ -35,6 +42,22 @@ inline void motorsFWD(){
 inline void motorsBKWD(){
     GPIO.out_w1tc = FWD_MASK;
     GPIO.out_w1ts = BKWD_MASK;
+}
+inline void motorsSTRAFE_LEFT(){
+    GPIO.out_w1tc = ALL_MOTOR_MASK;
+    GPIO.out_w1ts = STRAFE_LEFT_MASK;
+}
+inline void motorsSTRAFE_RIGHT(){
+    GPIO.out_w1tc = ALL_MOTOR_MASK;
+    GPIO.out_w1ts = STRAFE_RIGHT_MASK;
+}
+inline void motorsROT_LEFT(){
+    GPIO.out_w1tc = ALL_MOTOR_MASK;
+    GPIO.out_w1ts = ROT_LEFT_MASK;
+}
+inline void motorsROT_RIGHT(){
+    GPIO.out_w1tc = ALL_MOTOR_MASK;
+    GPIO.out_w1ts = ROT_RIGHT_MASK;
 }
 
 inline void motorsInit(){
