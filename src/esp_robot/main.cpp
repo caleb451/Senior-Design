@@ -46,7 +46,12 @@ static bool  wheelMagnetOK[4] = {false};
 
 // IMU-based movement verification
 static float lastAccelMag = 1.0f;       // at rest = 1.0g
+static float lastAccelX = 0.0f;         // acceleration X (g)
+static float lastAccelY = 0.0f;         // acceleration Y (g)
 static bool imuMovementDetected = false;
+static float lastGyroX = 0.0f;          // rotation rate X (deg/s)
+static float lastGyroY = 0.0f;          // rotation rate Y (deg/s)
+static float lastGyroZ = 0.0f;          // rotation rate Z (deg/s)
 
 static uint32_t lastEncoderUpdate = 0;
 const uint32_t encoderUpdateInterval = 50; // update encoders every 50 ms
@@ -118,9 +123,9 @@ void updateEncoders() {
 
         // Cache computed values
         wheelDegrees[i] = deg;
-        // Invert encoder readings for M2 (wheel 1) and M4 (wheel 3) - mounted backward
+        // Invert encoder readings for M1 (wheel 0), M2 (wheel 1), and M3 (wheel 2) - mounted backward
         float actualRotations = rotations[i] + (deg / 360.0f);
-        if (i == 1 || i == 3) {
+        if (i == 0 || i == 1 || i == 2) {
             wheelRotations[i] = -actualRotations;
         } else {
             wheelRotations[i] = actualRotations;
@@ -135,10 +140,16 @@ void updateEncoders() {
     int16_t data[6] = {0};
     int rslt = bmi160.getAccelGyroData(data);
     if (rslt == BMI160_OK) {
-        float accelX = data[3] / 16384.0f;
-        float accelY = data[4] / 16384.0f;
+        // Gyroscope data (rotation rates in deg/s)
+        lastGyroX = data[0] / 16.4f;
+        lastGyroY = data[1] / 16.4f;
+        lastGyroZ = data[2] / 16.4f;
+        
+        // Accelerometer data
+        lastAccelX = data[3] / 16384.0f;
+        lastAccelY = data[4] / 16384.0f;
         float accelZ = data[5] / 16384.0f;
-        lastAccelMag = sqrt(accelX*accelX + accelY*accelY + accelZ*accelZ);
+        lastAccelMag = sqrt(lastAccelX*lastAccelX + lastAccelY*lastAccelY + accelZ*accelZ);
         // Movement detected if far from 1.0g (at rest) - looser threshold for ground vibration
         imuMovementDetected = (lastAccelMag > 1.02f || lastAccelMag < 0.95f);
     }
@@ -158,26 +169,63 @@ inline void applyMovement(MovementMode mode) {
 }
 
 void printValues() {
-    // Simple display of encoder and IMU values
-    Serial.print("W0:");
-    Serial.print(wheelRotations[0], 2);
-    Serial.print("  W1:");
-    Serial.print(wheelRotations[1], 2);
-    Serial.print("  W2:");
-    Serial.print(wheelRotations[2], 2);
-    Serial.print("  W3:");
-    Serial.print(wheelRotations[3], 2);
-    Serial.print("  | Accel:");
-    Serial.print(lastAccelMag, 3);
-    Serial.print("g");
+    // Teleplot format: >variableName:value
     
+    // Wheel rotations (all on one graph)
+    Serial.print(">wheels:");
+    Serial.print(wheelRotations[0]);
+    Serial.print(":");
+    Serial.print(wheelRotations[1]);
+    Serial.print(":");
+    Serial.print(wheelRotations[2]);
+    Serial.print(":");
+    Serial.println(wheelRotations[3]);
+
+    // Individual wheel rotations (easier to see per-channel)
+    Serial.print(">wheel0:");
+    Serial.println(wheelRotations[0]);
+    Serial.print(">wheel1:");
+    Serial.println(wheelRotations[1]);
+    Serial.print(">wheel2:");
+    Serial.println(wheelRotations[2]);
+    Serial.print(">wheel3:");
+    Serial.println(wheelRotations[3]);
+    
+    // Wheel distances in mm
+    Serial.print(">distances:");
+    Serial.print(wheelDistance[0]);
+    Serial.print(":");
+    Serial.print(wheelDistance[1]);
+    Serial.print(":");
+    Serial.print(wheelDistance[2]);
+    Serial.print(":");
+    Serial.println(wheelDistance[3]);
+    
+    // IMU Acceleration
+    Serial.print(">accel_magnitude:");
+    Serial.println(lastAccelMag);
+    
+    // IMU Acceleration X and Y
+    Serial.print(">accel_x:");
+    Serial.println(lastAccelX);
+    Serial.print(">accel_y:");
+    Serial.println(lastAccelY);
+    
+    // IMU Gyroscope Z only (rotation about vertical axis, deg/s)
+    Serial.print(">gyro_z:");
+    Serial.println(lastGyroZ);
+    
+    // Movement detection
+    Serial.print(">imu_moving:");
+    Serial.println(imuMovementDetected ? 1 : 0);
+    
+    // Test state
     if (testActive) {
-        Serial.print("  [TEST: ");
-        Serial.print(currentMode);
-        Serial.print("]");
+        Serial.print(">test_target:");
+        Serial.println(targetRotations);
+        Serial.print(">test_mode:");
+        Serial.println(currentMode);
     }
-    
-    Serial.println();
 }
 
 void i2cScanner() {
@@ -245,13 +293,17 @@ void startMovementTest(float numRotations, MovementMode mode) {
     currentMode = mode;
     testStartTime = millis();
 
-    // Refresh encoders to capture current position before starting
-    updateEncoders();
-    
-    // Record initial encoder values
+    // Re-zero encoders to start from 0 rotations
     for (uint8_t i = 0; i < 4; i++) {
-        initialRotations[i] = wheelRotations[i];
+        tcaSelect(i);
+        lastRaw[i] = encoders[i]->rawAngle();
+        rotations[i] = 0;
+        firstRead[i] = false;
+        wheelRotations[i] = 0;
+        wheelDistance[i] = 0;
+        initialRotations[i] = 0;
     }
+    tcaDisable();
     
     Serial.println("\n");
     Serial.println("╔════════════════════════════════════════════════╗");
@@ -573,20 +625,16 @@ void loop() {
     if (testActive) {
         static uint32_t movementStartTime = 0;
         
-        // Check if all active wheels have reached target in their expected direction
+        // Check if all active wheels have reached target (magnitude-based to tolerate wiring inversions)
         bool encodersReached = true;
         for (uint8_t i = 0; i < 4; i++) {
             int8_t expectedDir = wheelDirection[currentMode][i];
             if (expectedDir == 0) continue; // Wheel not used in this mode
             
             float currentRotations = wheelRotations[i] - initialRotations[i];
-            float signedTarget = targetRotations * expectedDir;
+            float progressMag = fabs(currentRotations);
             
-            // Check if wheel has reached target in the expected direction
-            if (expectedDir > 0 && currentRotations < signedTarget - 0.05f) {
-                encodersReached = false;
-                break;
-            } else if (expectedDir < 0 && currentRotations > signedTarget + 0.05f) {
+            if (progressMag < targetRotations - 0.05f) {
                 encodersReached = false;
                 break;
             }
