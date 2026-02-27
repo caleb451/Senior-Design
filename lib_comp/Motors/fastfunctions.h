@@ -9,8 +9,8 @@
 #define M1_BKWD 19
 #define M2_FWD  16
 #define M2_BKWD 17
-#define M3_FWD  14
-#define M3_BKWD 27
+#define M3_FWD  27
+#define M3_BKWD 26
 #define M4_FWD  13
 #define M4_BKWD 12
 
@@ -31,43 +31,120 @@ constexpr uint32_t STRAFE_RIGHT_MASK = (1UL << M1_FWD)  | (1UL << M2_BKWD) | (1U
 constexpr uint32_t ROT_LEFT_MASK  = (1UL << M1_BKWD) | (1UL << M3_BKWD) | (1UL << M2_FWD)  | (1UL << M4_FWD);
 constexpr uint32_t ROT_RIGHT_MASK = (1UL << M1_FWD)  | (1UL << M3_FWD)  | (1UL << M2_BKWD) | (1UL << M4_BKWD);
 
+// LEDC PWM setup
+constexpr uint32_t PWM_FREQ_HZ = 20000;
+constexpr uint8_t PWM_RES_BITS = 8;
+constexpr uint8_t CH_M1_FWD = 0;
+constexpr uint8_t CH_M1_BKWD = 1;
+constexpr uint8_t CH_M2_FWD = 2;
+constexpr uint8_t CH_M2_BKWD = 3;
+constexpr uint8_t CH_M3_FWD = 4;
+constexpr uint8_t CH_M3_BKWD = 5;
+constexpr uint8_t CH_M4_FWD = 6;
+constexpr uint8_t CH_M4_BKWD = 7;
+static uint8_t motorSpeed = 255;
+
 // Inline lets the functions compile to direct registers instead of pushing arguments or returning (optimized)
+inline void motorsSetSpeed(uint8_t speed){
+    motorSpeed = speed;
+}
+
 inline void motorsOFF(){
-    GPIO.out_w1tc = ALL_MOTOR_MASK; 
+    ledcWrite(CH_M1_FWD, 0);
+    ledcWrite(CH_M1_BKWD, 0);
+    ledcWrite(CH_M2_FWD, 0);
+    ledcWrite(CH_M2_BKWD, 0);
+    ledcWrite(CH_M3_FWD, 0);
+    ledcWrite(CH_M3_BKWD, 0);
+    ledcWrite(CH_M4_FWD, 0);
+    ledcWrite(CH_M4_BKWD, 0);
 }
 inline void motorsFWD(){
-    GPIO.out_w1tc = BKWD_MASK;
-    GPIO.out_w1ts = FWD_MASK;
+    ledcWrite(CH_M1_BKWD, 0);
+    ledcWrite(CH_M2_BKWD, 0);
+    ledcWrite(CH_M3_BKWD, 0);
+    ledcWrite(CH_M4_BKWD, 0);
+    ledcWrite(CH_M1_FWD, motorSpeed);
+    ledcWrite(CH_M2_FWD, motorSpeed);
+    ledcWrite(CH_M3_FWD, motorSpeed);
+    ledcWrite(CH_M4_FWD, motorSpeed);
 }
 inline void motorsBKWD(){
-    GPIO.out_w1tc = FWD_MASK;
-    GPIO.out_w1ts = BKWD_MASK;
+    ledcWrite(CH_M1_FWD, 0);
+    ledcWrite(CH_M2_FWD, 0);
+    ledcWrite(CH_M3_FWD, 0);
+    ledcWrite(CH_M4_FWD, 0);
+    ledcWrite(CH_M1_BKWD, motorSpeed);
+    ledcWrite(CH_M2_BKWD, motorSpeed);
+    ledcWrite(CH_M3_BKWD, motorSpeed);
+    ledcWrite(CH_M4_BKWD, motorSpeed);
 }
 inline void motorsSTRAFE_LEFT(){
-    GPIO.out_w1tc = ALL_MOTOR_MASK;
-    GPIO.out_w1ts = STRAFE_LEFT_MASK;
+    motorsOFF();
+    ledcWrite(CH_M1_BKWD, motorSpeed);
+    ledcWrite(CH_M2_FWD, motorSpeed);
+    ledcWrite(CH_M3_FWD, motorSpeed);
+    ledcWrite(CH_M4_BKWD, motorSpeed);
 }
 inline void motorsSTRAFE_RIGHT(){
-    GPIO.out_w1tc = ALL_MOTOR_MASK;
-    GPIO.out_w1ts = STRAFE_RIGHT_MASK;
+    motorsOFF();
+    ledcWrite(CH_M1_FWD, motorSpeed);
+    ledcWrite(CH_M2_BKWD, motorSpeed);
+    ledcWrite(CH_M3_BKWD, motorSpeed);
+    ledcWrite(CH_M4_FWD, motorSpeed);
 }
 inline void motorsROT_LEFT(){
-    GPIO.out_w1tc = ALL_MOTOR_MASK;
-    GPIO.out_w1ts = ROT_LEFT_MASK;
+    motorsOFF();
+    ledcWrite(CH_M1_BKWD, motorSpeed);
+    ledcWrite(CH_M3_BKWD, motorSpeed);
+    ledcWrite(CH_M2_FWD, motorSpeed);
+    ledcWrite(CH_M4_FWD, motorSpeed);
 }
 inline void motorsROT_RIGHT(){
-    GPIO.out_w1tc = ALL_MOTOR_MASK;
-    GPIO.out_w1ts = ROT_RIGHT_MASK;
+    motorsOFF();
+    ledcWrite(CH_M1_FWD, motorSpeed);
+    ledcWrite(CH_M3_FWD, motorSpeed);
+    ledcWrite(CH_M2_BKWD, motorSpeed);
+    ledcWrite(CH_M4_BKWD, motorSpeed);
+}
+
+inline void motorsSetWheelPwm(int pwmM1, int pwmM2, int pwmM3, int pwmM4) {
+    auto apply = [](int fwdCh, int bkwdCh, int pwm) {
+        if (pwm >= 0) {
+            ledcWrite(bkwdCh, 0);
+            ledcWrite(fwdCh, pwm);
+        } else {
+            ledcWrite(fwdCh, 0);
+            ledcWrite(bkwdCh, -pwm);
+        }
+    };
+
+    apply(CH_M1_FWD, CH_M1_BKWD, pwmM1);
+    apply(CH_M2_FWD, CH_M2_BKWD, pwmM2);
+    apply(CH_M3_FWD, CH_M3_BKWD, pwmM3);
+    apply(CH_M4_FWD, CH_M4_BKWD, pwmM4);
 }
 
 inline void motorsInit(){
-    gpio_config_t conf = {};
-    conf.pin_bit_mask = ALL_MOTOR_MASK;
-    conf.mode = GPIO_MODE_OUTPUT;
-    conf.pull_up_en = GPIO_PULLUP_DISABLE;
-    conf.pull_down_en = GPIO_PULLDOWN_DISABLE;
-    conf.intr_type = GPIO_INTR_DISABLE;
-    gpio_config(&conf);
+    ledcSetup(CH_M1_FWD, PWM_FREQ_HZ, PWM_RES_BITS);
+    ledcSetup(CH_M1_BKWD, PWM_FREQ_HZ, PWM_RES_BITS);
+    ledcSetup(CH_M2_FWD, PWM_FREQ_HZ, PWM_RES_BITS);
+    ledcSetup(CH_M2_BKWD, PWM_FREQ_HZ, PWM_RES_BITS);
+    ledcSetup(CH_M3_FWD, PWM_FREQ_HZ, PWM_RES_BITS);
+    ledcSetup(CH_M3_BKWD, PWM_FREQ_HZ, PWM_RES_BITS);
+    ledcSetup(CH_M4_FWD, PWM_FREQ_HZ, PWM_RES_BITS);
+    ledcSetup(CH_M4_BKWD, PWM_FREQ_HZ, PWM_RES_BITS);
+
+    ledcAttachPin(M1_FWD, CH_M1_FWD);
+    ledcAttachPin(M1_BKWD, CH_M1_BKWD);
+    ledcAttachPin(M2_FWD, CH_M2_FWD);
+    ledcAttachPin(M2_BKWD, CH_M2_BKWD);
+    ledcAttachPin(M3_FWD, CH_M3_FWD);
+    ledcAttachPin(M3_BKWD, CH_M3_BKWD);
+    ledcAttachPin(M4_FWD, CH_M4_FWD);
+    ledcAttachPin(M4_BKWD, CH_M4_BKWD);
     motorsOFF();
 }
+
+//April Tag sensing. 
 #endif

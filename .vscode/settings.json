@@ -7,5 +7,6 @@
         "limits": "cpp",
         "sstream": "cpp",
         "utility": "cpp"
-    }
+    },
+    "cmake.sourceDirectory": "G:/Other computers/PC/Documents/PlatformIO/Projects/Robot Program/ros2/esp32_serial_bridge"
 }

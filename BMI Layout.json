@@ -1,0 +1,111 @@
+{
+   "widgets": [
+      {
+         "type": "chart",
+         "gridPos": {
+            "h": 6,
+            "w": 6,
+            "x": 0,
+            "y": 0
+         },
+         "series": [
+            {
+               "name": "gyro_x",
+               "sourceNames": [
+                  "gyro_x"
+               ],
+               "formula": "",
+               "options": {
+                  "_serie": "gyro_x",
+                  "_id": "data-serie-0",
+                  "stroke": "rgba(231,76,60,1)",
+                  "fill": "rgba(231,76,60,0.1)"
+               },
+               "type": "number"
+            },
+            {
+               "name": "gyro_y",
+               "sourceNames": [
+                  "gyro_y"
+               ],
+               "formula": "",
+               "options": {
+                  "_serie": "gyro_y",
+                  "_id": "data-serie-6",
+                  "stroke": "rgba(52,152,219,1)",
+                  "fill": "rgba(52,152,219,0.1)"
+               },
+               "type": "number"
+            },
+            {
+               "name": "gyro_z",
+               "sourceNames": [
+                  "gyro_z"
+               ],
+               "formula": "",
+               "options": {
+                  "_serie": "gyro_z",
+                  "_id": "data-serie-7",
+                  "stroke": "rgba(46,204,113,1)",
+                  "fill": "rgba(46,204,113,0.1)"
+               },
+               "type": "number"
+            }
+         ]
+      },
+      {
+         "type": "chart",
+         "gridPos": {
+            "h": 6,
+            "w": 6,
+            "x": 0,
+            "y": 0
+         },
+         "series": [
+            {
+               "name": "accel_x",
+               "sourceNames": [
+                  "accel_x"
+               ],
+               "formula": "",
+               "options": {
+                  "_serie": "accel_x",
+                  "_id": "data-serie-3",
+                  "stroke": "rgba(231,76,60,1)",
+                  "fill": "rgba(231,76,60,0.1)"
+               },
+               "type": "number"
+            },
+            {
+               "name": "accel_y",
+               "sourceNames": [
+                  "accel_y"
+               ],
+               "formula": "",
+               "options": {
+                  "_serie": "accel_y",
+                  "_id": "data-serie-9",
+                  "stroke": "rgba(52,152,219,1)",
+                  "fill": "rgba(52,152,219,0.1)"
+               },
+               "type": "number"
+            },
+            {
+               "name": "accel_z",
+               "sourceNames": [
+                  "accel_z"
+               ],
+               "formula": "",
+               "options": {
+                  "_serie": "accel_z",
+                  "_id": "data-serie-10",
+                  "stroke": "rgba(46,204,113,1)",
+                  "fill": "rgba(46,204,113,0.1)"
+               },
+               "type": "number"
+            }
+         ]
+      }
+   ],
+   "viewDuration": 15
+}

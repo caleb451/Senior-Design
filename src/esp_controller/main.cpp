@@ -16,9 +16,9 @@ Description:
 #endif
 
 //MAC Address for the Controller:   F8:B3:B7:45:45:E4
-//MAC Address for the Robot:        F8:B3:B7:3E:FC:84
+//MAC Address for the Robot:        B0:CB:D8:ED:41:08
 
-uint8_t robotAddress[] = {0xF8, 0xB3, 0xB7, 0x3E, 0xFC, 0x84};
+uint8_t robotAddress[] = {0xB0, 0xCB, 0xD8, 0xED, 0x41, 0x08};
 
 typedef struct controllerData{
     char state;
