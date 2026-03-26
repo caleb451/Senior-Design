@@ -5,6 +5,14 @@
 #include <driver/gpio.h>
 #include "soc/gpio_struct.h"
 
+//Photoresistor Pinout
+#define photo 4
+
+//Servo Pinouts
+#define servo_door 6
+#define servo_arm  7
+
+//Motor Pinouts
 #define M1_FWD  18
 #define M1_BKWD 19
 #define M2_FWD  16
@@ -13,6 +21,7 @@
 #define M3_BKWD 26
 #define M4_FWD  13
 #define M4_BKWD 12
+#define COLLECTION 5
 
 // This is to mask all the gpio pins simultaneously using bitwise ORs
 // exp: GPIO pin 2 needs to be enabled (1), In a 32 bit system : 0010 -pin 2 enabled.
@@ -22,6 +31,10 @@ constexpr uint32_t ALL_MOTOR_MASK = (1UL << M1_FWD) | (1UL << M1_BKWD) | (1UL <<
 constexpr uint32_t FWD_MASK =       (1UL << M1_FWD) | (1UL << M2_FWD) | (1UL << M3_FWD) | (1UL << M4_FWD);
 
 constexpr uint32_t BKWD_MASK =      (1UL << M1_BKWD) | (1UL << M2_BKWD) | (1UL << M3_BKWD) | (1UL << M4_BKWD);
+
+// Servo masking for the pins
+constexpr uint32_t SERVO_MASK =     (1UL << servo_door) | (1UL << servo_arm);
+constexpr uint32_t COLLECTION_MASK = (1UL << COLLECTION);
 
 // Holonomic strafing (aligns with original motors_left/motors_right mapping)
 constexpr uint32_t STRAFE_LEFT_MASK  = (1UL << M1_BKWD) | (1UL << M2_FWD)  | (1UL << M3_FWD)  | (1UL << M4_BKWD);
@@ -50,6 +63,7 @@ inline void motorsSetSpeed(uint8_t speed){
 }
 
 inline void motorsOFF(){
+    GPIO.out_w1tc = COLLECTION;
     ledcWrite(CH_M1_FWD, 0);
     ledcWrite(CH_M1_BKWD, 0);
     ledcWrite(CH_M2_FWD, 0);
@@ -146,5 +160,15 @@ inline void motorsInit(){
     motorsOFF();
 }
 
-//April Tag sensing. 
+inline void collectionInit(){
+    gpio_config_t conf = {};
+    conf.pin_bit_mask = COLLECTION_MASK;
+    conf.mode = GPIO_MODE_OUTPUT;
+    conf.pull_up_en = GPIO_PULLUP_DISABLE;
+    conf.pull_down_en = GPIO_PULLDOWN_DISABLE;
+    conf.intr_type = GPIO_INTR_DISABLE;
+    gpio_config(&conf);
+    GPIO.out_w1tc = COLLECTION;
+}
+
 #endif
