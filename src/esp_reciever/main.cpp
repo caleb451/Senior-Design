@@ -46,10 +46,10 @@ void OnDataRecv(const uint8_t *mac, const uint8_t *incomingDataBytes, int len) {
     case '4':
       motorsRight();
       break;
-    case '9':
+    case '5':
       motorsRotateR();
       break;
-    case 'A':
+    case '6':
       motorsRotateL();
       break;
     default:
@@ -76,7 +76,7 @@ int motors_Rright[4] = {m1_fwd, m3_fwd, m2_bkwd, m4_bkwd};
 
 void setup() {
     Serial.begin(115200);
-    //Serial.println(WiFi.macAddress()); //get the MAC Adress of the Controller 
+    Serial.println(WiFi.macAddress()); //get the MAC Adress of the Controller 
     for(int i = 0; i < 8; i++)
         pinMode(motors[i], OUTPUT);
     motorsOff();

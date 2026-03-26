@@ -12,14 +12,14 @@
   #endif
   #ifdef RECIEVER
     // Motor pins only
-    #define m1_fwd  13
-    #define m1_bkwd 12
-    #define m2_fwd  14
-    #define m2_bkwd 27
-    #define m3_fwd  26
-    #define m3_bkwd 25
-    #define m4_fwd  33
-    #define m4_bkwd 32
+    #define m1_fwd  18
+    #define m1_bkwd 19
+    #define m2_fwd  16
+    #define m2_bkwd 17
+    #define m3_fwd  27
+    #define m3_bkwd 26
+    #define m4_fwd  13
+    #define m4_bkwd 12
   #endif
 #else
   //Digital Motor Pins

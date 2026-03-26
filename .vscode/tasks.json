@@ -1,0 +1,16 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Build esp_hardcode case firmware",
+			"type": "shell",
+			"command": "C:\\Users\\caleb\\.platformio\\penv\\Scripts\\platformio.exe",
+			"args": [
+				"run",
+				"-e",
+				"esp_hardcode"
+			],
+			"isBackground": false
+		}
+	]
+}
