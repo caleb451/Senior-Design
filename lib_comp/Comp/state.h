@@ -21,28 +21,48 @@ inline void hardcode_state(int state, uint8_t speed) {
     
     switch(state) {
         case STATE_FLAG:
-            motorsFWD();
-            delay(2000);
-            motorsBKWD();
+            Serial.println("Flag Starting");
+            dropFlag(1000);
+            motorsFWD(250);
+            motorsOFF(10);
+            dropFlag(1000);
+            motorsROT_LEFT(100);
+            motorsOFF(10);
+            Serial.println("Flag Stopping");
+            delay(1000);
         break;
 
         case STATE_SWEEP:
+            Serial.println("Sweep Starting");
+            Serial.println("Sweep Stopping");
         break;
 
         case STATE_BIN1:
+            Serial.println("Bin Starting");
+            liftBin(1000);
+            Serial.println("Bin Stopping");
         break;
 
         case STATE_BIN2:
+            Serial.println("Bin2 Starting");
+            liftBin(1000);
+            Serial.println("Bin Stopping");
         break;
 
         case STATE_CAVE:
+            Serial.println("Cave Starting");
+            Serial.println("Cave Stopping");
         break;
 
         case STATE_CAVE_SWEEP:
+            Serial.println("Cave Sweep Starting");
+            Serial.println("Cave Sweep Stopping");
         break;
 
         case STATE_STOP:
         default:
+            Serial.println("Motors Off");
+            GPIO.out_w1tc = (1UL << COLLECTION);
             motorsOFF();
         break;
     }

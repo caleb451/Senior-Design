@@ -8,7 +8,7 @@
 static const uint8_t DRIVE_SPEED = 170;
 
 int val = 0;
-bool START = true;
+bool START = false;
 int state;
 
 void setup() {
@@ -17,26 +17,37 @@ void setup() {
 
     motorsInit();
     motorsSetSpeed(DRIVE_SPEED);
+    servosInit();
     collectionInit();
     motorsOFF();
+
+    servoRotationTest();
 }
 
 void loop() {
     //Starting from beginning
-    //Photoresistor start signal (will stay in the loop until photoresistor is read)
+    //Photoresistor start signal (will stay in the loop until photoresistor val reads light value above 1000)
+    Serial.println("Photoresister read:");
     val = analogRead(photo);
+    Serial.println(val);
     if(!START){
-        if (val > 1000){
-            serialPrint("Photoresister read");
+        if (val >= 1000){
+            GPIO.out_w1ts = (1UL << COLLECTION);
+            Serial.println("Photoresister read, light on:");
+            Serial.println(val);
             START = true;
+            delay(1000);
         }
         else{
             motorsOFF();
+            Serial.println("Photoresister read not in bounds.");
+            Serial.println("Photoresister read: ");
+            Serial.print(val);
             return;
         }
     }
 
     //Current states run (flag, sweep, bin1, bin2, cave, cave_sweep)
-    hardcode_state(state, DRIVE_SPEED);
+    hardcode_state(state++, DRIVE_SPEED);
     delay(100);
 }

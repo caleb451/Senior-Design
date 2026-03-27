@@ -4,13 +4,25 @@
 #include <Arduino.h>
 #include <driver/gpio.h>
 #include "soc/gpio_struct.h"
+#include <ESP32Servo.h>
+
+Servo doorServo;
+Servo armServo;
+
+static const uint16_t SERVO_MIN_US = 500;
+static const uint16_t SERVO_MAX_US = 2400;
+static const uint8_t SERVO_DOOR_CLOSED_ANGLE = 0;
+static const uint8_t SERVO_DOOR_OPEN_ANGLE = 90;
+static const uint8_t SERVO_ARM_HOME_ANGLE = 0;
+static const uint8_t SERVO_ARM_DROP_ANGLE = 90;
+static const uint8_t SERVO_ARM_LIFT_ANGLE = 180;
 
 //Photoresistor Pinout
 #define photo 4
 
 //Servo Pinouts
-#define servo_door 6
-#define servo_arm  7
+#define servo_door 32
+#define servo_arm  33
 
 //Motor Pinouts
 #define M1_FWD  18
@@ -21,7 +33,7 @@
 #define M3_BKWD 26
 #define M4_FWD  13
 #define M4_BKWD 12
-#define COLLECTION 5
+#define COLLECTION 21
 
 // This is to mask all the gpio pins simultaneously using bitwise ORs
 // exp: GPIO pin 2 needs to be enabled (1), In a 32 bit system : 0010 -pin 2 enabled.
@@ -33,7 +45,7 @@ constexpr uint32_t FWD_MASK =       (1UL << M1_FWD) | (1UL << M2_FWD) | (1UL << 
 constexpr uint32_t BKWD_MASK =      (1UL << M1_BKWD) | (1UL << M2_BKWD) | (1UL << M3_BKWD) | (1UL << M4_BKWD);
 
 // Servo masking for the pins
-constexpr uint32_t SERVO_MASK =     (1UL << servo_door) | (1UL << servo_arm);
+constexpr uint64_t SERVO_MASK =     (1ULL << servo_door) | (1ULL << servo_arm);
 constexpr uint32_t COLLECTION_MASK = (1UL << COLLECTION);
 
 // Holonomic strafing (aligns with original motors_left/motors_right mapping)
@@ -62,8 +74,8 @@ inline void motorsSetSpeed(uint8_t speed){
     motorSpeed = speed;
 }
 
-inline void motorsOFF(){
-    GPIO.out_w1tc = COLLECTION;
+inline void motorsOFF(uint32_t waitMs = 0){
+    //GPIO.out_w1tc = COLLECTION;
     ledcWrite(CH_M1_FWD, 0);
     ledcWrite(CH_M1_BKWD, 0);
     ledcWrite(CH_M2_FWD, 0);
@@ -72,8 +84,9 @@ inline void motorsOFF(){
     ledcWrite(CH_M3_BKWD, 0);
     ledcWrite(CH_M4_FWD, 0);
     ledcWrite(CH_M4_BKWD, 0);
+    delay(waitMs);
 }
-inline void motorsFWD(){
+inline void motorsFWD(uint32_t waitMs = 0){
     ledcWrite(CH_M1_BKWD, 0);
     ledcWrite(CH_M2_BKWD, 0);
     ledcWrite(CH_M3_BKWD, 0);
@@ -82,8 +95,9 @@ inline void motorsFWD(){
     ledcWrite(CH_M2_FWD, motorSpeed);
     ledcWrite(CH_M3_FWD, motorSpeed);
     ledcWrite(CH_M4_FWD, motorSpeed);
+    delay(waitMs);
 }
-inline void motorsBKWD(){
+inline void motorsBKWD(uint32_t waitMs = 0){
     ledcWrite(CH_M1_FWD, 0);
     ledcWrite(CH_M2_FWD, 0);
     ledcWrite(CH_M3_FWD, 0);
@@ -92,34 +106,39 @@ inline void motorsBKWD(){
     ledcWrite(CH_M2_BKWD, motorSpeed);
     ledcWrite(CH_M3_BKWD, motorSpeed);
     ledcWrite(CH_M4_BKWD, motorSpeed);
+    delay(waitMs);
 }
-inline void motorsSTRAFE_LEFT(){
+inline void motorsSTRAFE_LEFT(uint32_t waitMs = 0){
     motorsOFF();
     ledcWrite(CH_M1_BKWD, motorSpeed);
     ledcWrite(CH_M2_FWD, motorSpeed);
     ledcWrite(CH_M3_FWD, motorSpeed);
     ledcWrite(CH_M4_BKWD, motorSpeed);
+    delay(waitMs);
 }
-inline void motorsSTRAFE_RIGHT(){
+inline void motorsSTRAFE_RIGHT(uint32_t waitMs = 0){
     motorsOFF();
     ledcWrite(CH_M1_FWD, motorSpeed);
     ledcWrite(CH_M2_BKWD, motorSpeed);
     ledcWrite(CH_M3_BKWD, motorSpeed);
     ledcWrite(CH_M4_FWD, motorSpeed);
+    delay(waitMs);
 }
-inline void motorsROT_LEFT(){
+inline void motorsROT_LEFT(uint32_t waitMs = 0){
     motorsOFF();
     ledcWrite(CH_M1_BKWD, motorSpeed);
     ledcWrite(CH_M3_BKWD, motorSpeed);
     ledcWrite(CH_M2_FWD, motorSpeed);
     ledcWrite(CH_M4_FWD, motorSpeed);
+    delay(waitMs);
 }
-inline void motorsROT_RIGHT(){
+inline void motorsROT_RIGHT(uint32_t waitMs = 0){
     motorsOFF();
     ledcWrite(CH_M1_FWD, motorSpeed);
     ledcWrite(CH_M3_FWD, motorSpeed);
     ledcWrite(CH_M2_BKWD, motorSpeed);
     ledcWrite(CH_M4_BKWD, motorSpeed);
+    delay(waitMs);
 }
 
 inline void motorsSetWheelPwm(int pwmM1, int pwmM2, int pwmM3, int pwmM4) {
@@ -171,4 +190,52 @@ inline void collectionInit(){
     GPIO.out_w1tc = COLLECTION;
 }
 
+inline void servosInit() {
+    doorServo.setPeriodHertz(50);
+    armServo.setPeriodHertz(50);
+    doorServo.attach(servo_door, SERVO_MIN_US, SERVO_MAX_US);
+    armServo.attach(servo_arm, SERVO_MIN_US, SERVO_MAX_US);
+    doorServo.write(SERVO_DOOR_CLOSED_ANGLE);
+    armServo.write(SERVO_ARM_HOME_ANGLE);
+    delay(250);
+}
+
+inline void openDoor(uint32_t time = 0){
+    doorServo.write(SERVO_DOOR_OPEN_ANGLE);
+    delay(time);
+}
+
+inline void closeDoor(uint32_t time = 0){
+    doorServo.write(SERVO_DOOR_CLOSED_ANGLE);
+    delay(time);
+}
+
+inline void dropFlag(uint32_t time = 0){
+    armServo.write(SERVO_ARM_DROP_ANGLE);
+    delay(time);
+}
+
+inline void liftBin(uint32_t time = 0){
+    armServo.write(SERVO_ARM_DROP_ANGLE);
+    delay(time);
+    armServo.write(SERVO_ARM_LIFT_ANGLE);
+    delay(time);
+}
+
+// Servo diagnostic: cycles both servos through their key positions.
+inline void servoRotationTest(uint8_t cycles = 2, uint32_t dwellMs = 400) {
+    for (uint8_t i = 0; i < cycles; i++) {
+        openDoor(dwellMs);
+        closeDoor(dwellMs);
+
+        armServo.write(SERVO_ARM_HOME_ANGLE);
+        delay(dwellMs);
+        armServo.write(SERVO_ARM_DROP_ANGLE);
+        delay(dwellMs);
+        armServo.write(SERVO_ARM_LIFT_ANGLE);
+        delay(dwellMs);
+        armServo.write(SERVO_ARM_HOME_ANGLE);
+        delay(dwellMs);
+    }
+}
 #endif
