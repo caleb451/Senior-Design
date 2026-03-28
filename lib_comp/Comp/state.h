@@ -66,7 +66,6 @@ inline void hardcode_state(int state, uint8_t speed) {
         case STATE_STOP:
         default:
             Serial.println("Motors Off");
-            GPIO.out_w1tc = (1UL << COLLECTION);
             motorsOFF();
         break;
     }
