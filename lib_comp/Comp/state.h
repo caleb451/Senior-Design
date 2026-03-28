@@ -28,6 +28,8 @@ inline void hardcode_state(int state, uint8_t speed) {
             motorsOFF(10);
             motorsBKWD(2000);
             motorsOFF(10);
+            dropFlag(1000);
+            motorsFWD(4000);
             // motorsSTRAFE_LEFT(1500);
             // motorsOFF(10);
             // dropFlag(1000);
