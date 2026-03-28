@@ -18,11 +18,11 @@ static const uint8_t SERVO_ARM_DROP_ANGLE = 90;
 static const uint8_t SERVO_ARM_LIFT_ANGLE = 180;
 
 //Photoresistor Pinout
-#define photo 4
+#define photo 25
 
 //Servo Pinouts
-#define servo_door 32
-#define servo_arm  33
+#define servo_door 23
+#define servo_arm  22
 
 //Motor Pinouts
 #define M1_FWD  18
@@ -45,7 +45,7 @@ constexpr uint32_t FWD_MASK =       (1UL << M1_FWD) | (1UL << M2_FWD) | (1UL << 
 constexpr uint32_t BKWD_MASK =      (1UL << M1_BKWD) | (1UL << M2_BKWD) | (1UL << M3_BKWD) | (1UL << M4_BKWD);
 
 // Servo masking for the pins
-constexpr uint64_t SERVO_MASK =     (1ULL << servo_door) | (1ULL << servo_arm);
+constexpr uint32_t SERVO_MASK =      (1UL << servo_door) | (1UL << servo_arm);
 constexpr uint32_t COLLECTION_MASK = (1UL << COLLECTION);
 
 // Holonomic strafing (aligns with original motors_left/motors_right mapping)
@@ -59,14 +59,14 @@ constexpr uint32_t ROT_RIGHT_MASK = (1UL << M1_FWD)  | (1UL << M3_FWD)  | (1UL <
 // LEDC PWM setup
 constexpr uint32_t PWM_FREQ_HZ = 20000;
 constexpr uint8_t PWM_RES_BITS = 8;
-constexpr uint8_t CH_M1_FWD = 0;
-constexpr uint8_t CH_M1_BKWD = 1;
-constexpr uint8_t CH_M2_FWD = 2;
-constexpr uint8_t CH_M2_BKWD = 3;
-constexpr uint8_t CH_M3_FWD = 4;
-constexpr uint8_t CH_M3_BKWD = 5;
-constexpr uint8_t CH_M4_FWD = 6;
-constexpr uint8_t CH_M4_BKWD = 7;
+constexpr uint8_t CH_M1_FWD = 8;
+constexpr uint8_t CH_M1_BKWD = 9;
+constexpr uint8_t CH_M2_FWD = 10;
+constexpr uint8_t CH_M2_BKWD = 11;
+constexpr uint8_t CH_M3_FWD = 12;
+constexpr uint8_t CH_M3_BKWD = 13;
+constexpr uint8_t CH_M4_FWD = 14;
+constexpr uint8_t CH_M4_BKWD = 15;
 static uint8_t motorSpeed = 255;
 
 // Inline lets the functions compile to direct registers instead of pushing arguments or returning (optimized)
