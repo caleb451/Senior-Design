@@ -46,7 +46,7 @@ void loop() {
             Serial.println("Photoresister read, light on:");
             Serial.println(val);
             START = true;
-            digitalWrite(33, HIGH);
+            GPIO.out_w1ts = (1UL << COLLECTION);
             delay(1000);
         }
         else{
