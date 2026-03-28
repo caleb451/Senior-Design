@@ -1,4 +1,5 @@
 #include <Arduino.h>
+#include <esp_task_wdt.h>
 #include "Motors/fastfunctions.h"
 #include "Comp/reads.h"
 #include "Comp/state.h"
@@ -27,12 +28,16 @@ void setup() {
 void loop() {
     if(servo_test){
         openDoor(100);
+        esp_task_wdt_reset();
         delay(500);
         closeDoor(100);
+        esp_task_wdt_reset();
         delay(1000);
         dropFlag(200);
+        esp_task_wdt_reset();
         delay(500);
         liftBin(100);
+        esp_task_wdt_reset();
         delay(1000);
         return;
     }
@@ -59,6 +64,8 @@ void loop() {
     }
 
     //Current states run (flag, sweep, bin1, bin2, cave, cave_sweep)
+    esp_task_wdt_reset();
     hardcode_state(state++, DRIVE_SPEED);
+    esp_task_wdt_reset();
     delay(100);
 }

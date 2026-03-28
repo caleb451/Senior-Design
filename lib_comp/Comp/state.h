@@ -2,6 +2,7 @@
 #define STATE_H
 
 #include <Arduino.h>
+#include <esp_task_wdt.h>
 #include "Motors/fastfunctions.h"
 
 // State IDs for competition tasks
@@ -23,16 +24,22 @@ inline void hardcode_state(int state, uint8_t speed) {
         case STATE_FLAG:
             Serial.println("Flag Starting");
             motorsFWD(200);
+            esp_task_wdt_reset();
             motorsOFF(10);
             motorsROT_RIGHT(250);
+            esp_task_wdt_reset();
             motorsOFF(10);
             motorsBKWD(2000);
+            esp_task_wdt_reset();
             motorsOFF(10);
             motorsSTRAFE_LEFT(1500);
+            esp_task_wdt_reset();
             motorsOFF(10);
             dropFlag(1000);
+            esp_task_wdt_reset();
             motorsFWD(200);
             Serial.println("Flag Stopping");
+            esp_task_wdt_reset();
             delay(1000);
         break;
 

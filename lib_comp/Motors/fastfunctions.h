@@ -5,6 +5,7 @@
 #include <driver/gpio.h>
 #include "soc/gpio_struct.h"
 #include <ESP32Servo.h>
+#include <esp_task_wdt.h>
 
 Servo doorServo;
 Servo armServo;
@@ -187,7 +188,7 @@ inline void collectionInit(){
     conf.pull_down_en = GPIO_PULLDOWN_DISABLE;
     conf.intr_type = GPIO_INTR_DISABLE;
     gpio_config(&conf);
-    GPIO.out_w1tc = COLLECTION;
+    GPIO.out_w1tc = (1UL << COLLECTION);
 }
 
 inline void servosInit() {
@@ -212,19 +213,25 @@ inline void closeDoor(uint32_t time = 0){
 
 inline void dropFlag(uint32_t time = 0){
     armServo.write(SERVO_ARM_HOME_ANGLE);
+    esp_task_wdt_reset();
     delay(500 + time);
     armServo.write(SERVO_ARM_DROP_ANGLE);
+    esp_task_wdt_reset();
     delay(500 + time);
     armServo.write(SERVO_ARM_HOME_ANGLE);
+    esp_task_wdt_reset();
     delay(500 + time);
 }
 
 inline void liftBin(uint32_t time = 0){
     armServo.write(SERVO_ARM_HOME_ANGLE);
+    esp_task_wdt_reset();
     delay(time);
     armServo.write(SERVO_ARM_DROP_ANGLE);
+    esp_task_wdt_reset();
     delay(time);
     armServo.write(SERVO_ARM_HOME_ANGLE);
+    esp_task_wdt_reset();
     delay(time);
 }
 
@@ -232,15 +239,21 @@ inline void liftBin(uint32_t time = 0){
 inline void servoRotationTest(uint8_t cycles = 2, uint32_t dwellMs = 400) {
     for (uint8_t i = 0; i < cycles; i++) {
         openDoor(dwellMs);
+        esp_task_wdt_reset();
         closeDoor(dwellMs);
+        esp_task_wdt_reset();
 
         armServo.write(SERVO_ARM_HOME_ANGLE);
+        esp_task_wdt_reset();
         delay(dwellMs);
         armServo.write(SERVO_ARM_DROP_ANGLE);
+        esp_task_wdt_reset();
         delay(dwellMs);
         armServo.write(SERVO_ARM_LIFT_ANGLE);
+        esp_task_wdt_reset();
         delay(dwellMs);
         armServo.write(SERVO_ARM_HOME_ANGLE);
+        esp_task_wdt_reset();
         delay(dwellMs);
     }
 }
