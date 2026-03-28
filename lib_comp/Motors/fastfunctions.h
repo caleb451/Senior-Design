@@ -33,7 +33,7 @@ static const uint8_t SERVO_ARM_LIFT_ANGLE = 180;
 #define M3_BKWD 26
 #define M4_FWD  13
 #define M4_BKWD 12
-#define COLLECTION 21
+#define COLLECTION 32
 
 // This is to mask all the gpio pins simultaneously using bitwise ORs
 // exp: GPIO pin 2 needs to be enabled (1), In a 32 bit system : 0010 -pin 2 enabled.
@@ -46,7 +46,7 @@ constexpr uint32_t BKWD_MASK =      (1UL << M1_BKWD) | (1UL << M2_BKWD) | (1UL <
 
 // Servo masking for the pins
 constexpr uint64_t SERVO_MASK =      (1UL << servo_door) | (1ULL << servo_arm);
-constexpr uint32_t COLLECTION_MASK = (1UL << COLLECTION);
+constexpr uint64_t COLLECTION_MASK = (1ULL << COLLECTION);
 
 // Holonomic strafing (aligns with original motors_left/motors_right mapping)
 constexpr uint32_t STRAFE_LEFT_MASK  = (1UL << M1_BKWD) | (1UL << M2_FWD)  | (1UL << M3_FWD)  | (1UL << M4_BKWD);
@@ -187,7 +187,7 @@ inline void collectionInit(){
     conf.pull_down_en = GPIO_PULLDOWN_DISABLE;
     conf.intr_type = GPIO_INTR_DISABLE;
     gpio_config(&conf);
-    GPIO.out_w1tc = COLLECTION;
+    GPIO.out_w1tc = COLLECTION_MASK;
 }
 
 inline void servosInit() {

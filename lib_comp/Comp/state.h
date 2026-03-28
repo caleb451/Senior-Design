@@ -22,16 +22,16 @@ inline void hardcode_state(int state, uint8_t speed) {
     switch(state) {
         case STATE_FLAG:
             Serial.println("Flag Starting");
-            motorsFWD(200);
+            motorsFWD(2000);
             motorsOFF(10);
-            motorsROT_RIGHT(250);
+            motorsROT_RIGHT(770);
             motorsOFF(10);
             motorsBKWD(2000);
             motorsOFF(10);
-            motorsSTRAFE_LEFT(1500);
-            motorsOFF(10);
-            dropFlag(1000);
-            motorsFWD(200);
+            // motorsSTRAFE_LEFT(1500);
+            // motorsOFF(10);
+            // dropFlag(1000);
+            // motorsFWD(200);
             Serial.println("Flag Stopping");
             delay(1000);
         break;
@@ -66,7 +66,7 @@ inline void hardcode_state(int state, uint8_t speed) {
         case STATE_STOP:
         default:
             Serial.println("Motors Off");
-            GPIO.out_w1tc = (1UL << COLLECTION);
+            GPIO.out_w1tc = COLLECTION_MASK;
             motorsOFF();
         break;
     }

@@ -5,7 +5,7 @@
 #include <Wire.h>
 
 // default speed for comp
-static const uint8_t DRIVE_SPEED = 170;
+static const uint8_t DRIVE_SPEED = 160;
 
 int val = 0;
 bool START = false;
@@ -46,7 +46,7 @@ void loop() {
             Serial.println("Photoresister read, light on:");
             Serial.println(val);
             START = true;
-            GPIO.out_w1ts = (1UL << COLLECTION);
+            digitalWrite(33, HIGH);
             delay(1000);
         }
         else{
@@ -65,7 +65,7 @@ void loop() {
         //lets this run again at the end for a new round
         START = false;
         state = 0;
-        GPIO.out_w1tc = (1UL << COLLECTION);  // Turn off collection after all states complete
+        GPIO.out_w1tc = COLLECTION_MASK;  // Turn off collection after all states complete
     }
     delay(100);
 }
