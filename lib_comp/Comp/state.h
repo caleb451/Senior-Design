@@ -2,15 +2,16 @@
 #define STATE_H
 
 #include <Arduino.h>
+#include <esp_task_wdt.h>
 #include "Motors/fastfunctions.h"
 
 // State IDs for competition tasks
 enum CompState {
-    STATE_FLAG = 1,
+    STATE_BIN1 = 1,
     STATE_SWEEP = 2,
-    STATE_BIN1 = 3,
-    STATE_BIN2 = 4,
-    STATE_CAVE = 5,
+    STATE_CAVE = 3,
+    STATE_FLAG = 4,
+    STATE_BIN2 = 5,
     STATE_CAVE_SWEEP = 6,
     STATE_STOP = 0
 };
@@ -40,11 +41,31 @@ inline void hardcode_state(int state, uint8_t speed) {
 
         case STATE_SWEEP:
             Serial.println("Sweep Starting");
+            motorsBKWD(2000);
+            esp_task_wdt_reset();
+            motorsOFF(10);
+            motorsROT_RIGHT(500);
+            esp_task_wdt_reset();
+            motorsOFF(10);
+            motorsFWD(5000);
+            esp_task_wdt_reset();
+            motorsOFF(10);
+            motorsBKWD(2000);
+            esp_task_wdt_reset();
+            motorsOFF(10);
+            motorsOFF();
             Serial.println("Sweep Stopping");
         break;
 
         case STATE_BIN1:
             Serial.println("Bin Starting");
+            motorsSTRAFE_RIGHT(2500);
+            
+            motorsOFF(10);
+            motorsFWD(3200);
+            motorsOFF(10);
+            motorsSTRAFE_LEFT(2800);
+            motorsOFF(10);
             liftBin(1000);
             Serial.println("Bin Stopping");
         break;
