@@ -22,12 +22,16 @@ inline void hardcode_state(int state, uint8_t speed) {
     switch(state) {
         case STATE_FLAG:
             Serial.println("Flag Starting");
-            dropFlag(1000);
-            motorsFWD(250);
+            motorsFWD(200);
+            motorsOFF(10);
+            motorsROT_RIGHT(250);
+            motorsOFF(10);
+            motorsBKWD(2000);
+            motorsOFF(10);
+            motorsSTRAFE_LEFT(1500);
             motorsOFF(10);
             dropFlag(1000);
-            motorsROT_LEFT(100);
-            motorsOFF(10);
+            motorsFWD(200);
             Serial.println("Flag Stopping");
             delay(1000);
         break;

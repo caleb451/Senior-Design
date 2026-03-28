@@ -11,10 +11,10 @@ Servo armServo;
 
 static const uint16_t SERVO_MIN_US = 500;
 static const uint16_t SERVO_MAX_US = 2400;
-static const uint8_t SERVO_DOOR_CLOSED_ANGLE = 0;
-static const uint8_t SERVO_DOOR_OPEN_ANGLE = 90;
-static const uint8_t SERVO_ARM_HOME_ANGLE = 0;
-static const uint8_t SERVO_ARM_DROP_ANGLE = 90;
+static const uint8_t SERVO_DOOR_CLOSED_ANGLE = 90;
+static const uint8_t SERVO_DOOR_OPEN_ANGLE = 0;
+static const uint8_t SERVO_ARM_HOME_ANGLE = 45;
+static const uint8_t SERVO_ARM_DROP_ANGLE = 120;
 static const uint8_t SERVO_ARM_LIFT_ANGLE = 180;
 
 //Photoresistor Pinout
@@ -22,7 +22,7 @@ static const uint8_t SERVO_ARM_LIFT_ANGLE = 180;
 
 //Servo Pinouts
 #define servo_door 23
-#define servo_arm  22
+#define servo_arm  33
 
 //Motor Pinouts
 #define M1_FWD  18
@@ -45,7 +45,7 @@ constexpr uint32_t FWD_MASK =       (1UL << M1_FWD) | (1UL << M2_FWD) | (1UL << 
 constexpr uint32_t BKWD_MASK =      (1UL << M1_BKWD) | (1UL << M2_BKWD) | (1UL << M3_BKWD) | (1UL << M4_BKWD);
 
 // Servo masking for the pins
-constexpr uint32_t SERVO_MASK =      (1UL << servo_door) | (1UL << servo_arm);
+constexpr uint64_t SERVO_MASK =      (1UL << servo_door) | (1ULL << servo_arm);
 constexpr uint32_t COLLECTION_MASK = (1UL << COLLECTION);
 
 // Holonomic strafing (aligns with original motors_left/motors_right mapping)
@@ -211,14 +211,20 @@ inline void closeDoor(uint32_t time = 0){
 }
 
 inline void dropFlag(uint32_t time = 0){
+    armServo.write(SERVO_ARM_HOME_ANGLE);
+    delay(500 + time);
     armServo.write(SERVO_ARM_DROP_ANGLE);
-    delay(time);
+    delay(500 + time);
+    armServo.write(SERVO_ARM_HOME_ANGLE);
+    delay(500 + time);
 }
 
 inline void liftBin(uint32_t time = 0){
+    armServo.write(SERVO_ARM_HOME_ANGLE);
+    delay(time);
     armServo.write(SERVO_ARM_DROP_ANGLE);
     delay(time);
-    armServo.write(SERVO_ARM_LIFT_ANGLE);
+    armServo.write(SERVO_ARM_HOME_ANGLE);
     delay(time);
 }
 
