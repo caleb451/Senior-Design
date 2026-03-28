@@ -10,7 +10,7 @@ static const uint8_t DRIVE_SPEED = 170;
 int val = 0;
 bool START = false;
 int state = 0;
-bool servo_test = true;
+bool servo_test = false;
 
 void setup() {
     Serial.begin(115200);
@@ -43,10 +43,10 @@ void loop() {
     Serial.println(val);
     if(!START){
         if (val >= 1000){
-            GPIO.out_w1ts = (1UL << COLLECTION);
             Serial.println("Photoresister read, light on:");
             Serial.println(val);
             START = true;
+            GPIO.out_w1ts = (1UL << COLLECTION);
             delay(1000);
         }
         else{
@@ -59,6 +59,13 @@ void loop() {
     }
 
     //Current states run (flag, sweep, bin1, bin2, cave, cave_sweep)
-    hardcode_state(state++, DRIVE_SPEED);
+    if(state < 6) {
+        hardcode_state(state++, DRIVE_SPEED);
+    } else {
+        //lets this run again at the end for a new round
+        START = false;
+        state = 0;
+        GPIO.out_w1tc = (1UL << COLLECTION);  // Turn off collection after all states complete
+    }
     delay(100);
 }
