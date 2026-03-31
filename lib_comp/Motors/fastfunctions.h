@@ -14,7 +14,7 @@ static const uint16_t SERVO_MAX_US = 2400;
 static const uint8_t SERVO_DOOR_CLOSED_ANGLE = 90;
 static const uint8_t SERVO_DOOR_OPEN_ANGLE = 0;
 static const uint8_t SERVO_ARM_HOME_ANGLE = 45;
-static const uint8_t SERVO_ARM_DROP_ANGLE = 120;
+static const uint8_t SERVO_ARM_DROP_ANGLE = 140;
 static const uint8_t SERVO_ARM_LIFT_ANGLE = 180;
 
 //Photoresistor Pinout
@@ -211,10 +211,14 @@ inline void closeDoor(uint32_t time = 0){
 }
 
 inline void dropFlag(uint32_t time = 0){
+   
     armServo.write(SERVO_ARM_HOME_ANGLE);
     delay(500 + time);
     armServo.write(SERVO_ARM_DROP_ANGLE);
     delay(500 + time);
+    motorsSetSpeed(75);
+    motorsFWD(200);
+    motorsSetSpeed(160);
     armServo.write(SERVO_ARM_HOME_ANGLE);
     delay(500 + time);
 }

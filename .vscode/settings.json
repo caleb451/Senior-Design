@@ -1,4 +1,5 @@
 {
+    "platformio-ide.defaultEnvs": ["esp_comp"],
     "files.associations": {
         "pins_arduino.h": "c",
         "string": "cpp",

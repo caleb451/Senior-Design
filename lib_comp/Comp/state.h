@@ -7,10 +7,10 @@
 
 // State IDs for competition tasks
 enum CompState {
-    STATE_BIN1 = 1,
-    STATE_SWEEP = 2,
-    STATE_CAVE = 3,
-    STATE_FLAG = 4,
+    STATE_FLAG = 1,
+    STATE_BIN1 = 2,
+    STATE_SWEEP = 3,
+    STATE_CAVE = 4,
     STATE_BIN2 = 5,
     STATE_CAVE_SWEEP = 6,
     STATE_STOP = 0
@@ -26,11 +26,18 @@ inline void hardcode_state(int state, uint8_t speed) {
             motorsFWD(2000);
             motorsOFF(10);
             motorsROT_RIGHT(770);
+            motorsSTRAFE_LEFT(215);
             motorsOFF(10);
-            motorsBKWD(2000);
+
+            motorsBKWD(2200);
             motorsOFF(10);
             dropFlag(1000);
-            motorsFWD(4000);
+            motorsFWD(2500);
+            motorsOFF(10);
+            motorsBKWD(500);
+            motorsSTRAFE_LEFT(1200);
+            motorsBKWD(2000);
+            motorsOFF(10);
             // motorsSTRAFE_LEFT(1500);
             // motorsOFF(10);
             // dropFlag(1000);
@@ -41,33 +48,46 @@ inline void hardcode_state(int state, uint8_t speed) {
 
         case STATE_SWEEP:
             Serial.println("Sweep Starting");
-            motorsBKWD(2000);
-            esp_task_wdt_reset();
+
+            motorsFWD(1500);
             motorsOFF(10);
-            motorsROT_RIGHT(500);
-            esp_task_wdt_reset();
+            motorsBKWD(1500);
             motorsOFF(10);
-            motorsFWD(5000);
-            esp_task_wdt_reset();
+            motorsSTRAFE_RIGHT(1300);
             motorsOFF(10);
-            motorsBKWD(2000);
-            esp_task_wdt_reset();
+            motorsFWD(3000);
             motorsOFF(10);
-            motorsOFF();
+            motorsBKWD(3000);
+            motorsOFF(10);
+
+
+            // motorsBKWD(1500);
+            // esp_task_wdt_reset();
+            // motorsOFF(10);
+            // motorsROT_RIGHT(550);
+            // esp_task_wdt_reset();
+            // motorsOFF(10);
+            // motorsFWD(5000);
+            // esp_task_wdt_reset();
+            // motorsOFF(10);
+            // motorsBKWD(2000);
+            // esp_task_wdt_reset();
+            // motorsOFF(10);
+            // motorsOFF();
             Serial.println("Sweep Stopping");
         break;
 
         case STATE_BIN1:
             Serial.println("Bin Starting");
-            motorsSTRAFE_RIGHT(2500);
+            // motorsSTRAFE_RIGHT(2500);
             
-            motorsOFF(10);
-            motorsFWD(3200);
-            motorsOFF(10);
-            motorsSTRAFE_LEFT(2800);
-            motorsOFF(10);
-            liftBin(1000);
-            Serial.println("Bin Stopping");
+            // motorsOFF(10);
+            // motorsFWD(3200);
+            // motorsOFF(10);
+            // motorsSTRAFE_LEFT(2800);
+            // motorsOFF(10);
+            // liftBin(1000);
+            // Serial.println("Bin Stopping");
         break;
 
         case STATE_BIN2:
@@ -79,11 +99,29 @@ inline void hardcode_state(int state, uint8_t speed) {
         case STATE_CAVE:
             Serial.println("Cave Starting");
             Serial.println("Cave Stopping");
+            motorsSTRAFE_RIGHT(950);
+            motorsOFF(10);
+            motorsFWD(4000);
+            motorsOFF(10);
+            motorsBKWD(2500);
+            motorsOFF(10);
+
         break;
 
         case STATE_CAVE_SWEEP:
             Serial.println("Cave Sweep Starting");
             Serial.println("Cave Sweep Stopping");
+
+            motorsBKWD(3000);
+            motorsOFF(10);
+
+            motorsROT_RIGHT(500);
+            motorsOFF(100);
+            motorsFWD(3000);
+            motorsOFF(10);
+            motorsSTRAFE_RIGHT(275);
+            motorsOFF(10);
+
         break;
 
         case STATE_STOP:
